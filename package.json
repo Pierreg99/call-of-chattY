@@ -1,14 +1,14 @@
 {
   "name": "call-of-chatty",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/netcode.mjs",
-    "check": "node --check src/main.js && node --check src/systems/physics.js && node --check src/systems/animation.js && node --check src/systems/audio.js && node --check src/systems/director.js && node --check src/systems/vfx.js && node --check src/net/netcode.js && node --check src/aaa-runtime.js && node --check server/netcode.mjs",
+    "check": "node --check src/main.js && node --check src/systems/physics.js && node --check src/systems/animation.js && node --check src/systems/audio.js && node --check src/systems/director.js && node --check src/systems/vfx.js && node --check src/systems/performance.js && node --check src/net/netcode.js && node --check src/aaa-runtime.js && node --check server/netcode.mjs",
     "test": "node tests.smoke.mjs"
   },
   "dependencies": {
