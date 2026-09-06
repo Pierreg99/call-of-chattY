@@ -2,6 +2,22 @@
 
 All notable project changes are recorded here.
 
+## 0.3.1 — 2026-09-06
+
+### Added
+
+- Frame-pacing telemetry with p95 frame time, dropped-frame ratio, Long Tasks and optional heap usage.
+- Client WebSocket packet validation, bounded reconnect and RTT measurement.
+- Server capacity limits, message rate limiting, fire throttling and connection heartbeat.
+- Graceful relay shutdown and stronger smoke-test coverage.
+- Deep-research engineering report with prioritized next gaps.
+
+### Changed
+
+- Runtime now exposes performance telemetry through `window.chattYRuntime.perf`.
+- Runtime closes telemetry and networking cleanly on `pagehide`.
+- Project documentation now records the distinction between prototype hardening and production-grade authoritative networking.
+
 ## 0.3.0 — 2026-09-06
 
 ### Added
