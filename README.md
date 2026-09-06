@@ -1,17 +1,18 @@
 # call-of-chattY
 
-A Three.js first-person tactical sandbox engineered as an extensible AAA-style vertical slice.
+A Three.js first-person tactical FPS vertical slice with a modular AAA-oriented architecture.
 
-## Current vertical slice
+## Systems
 
-- First-person pointer-lock controls with acceleration, sprint stamina, jumping and boundary clamping.
-- Hitscan 5.56-style carbine with recoil, reload timing, reserve ammo, hit feedback and procedural weapon geometry.
-- Procedural combat space with layered cover, towers, runway markings, industrial silhouettes, physical materials, shadow casting and fog.
-- Reactive combatants with simple pursuit/strafe behavior, health, damage, death state and impact particles.
-- Cinematic rendering baseline: ACES tone mapping, soft shadows, atmospheric sky/fog, bloom and high-performance WebGL rendering.
-- Procedural texture generation with CanvasTexture, avoiding external art dependencies.
-- Performance HUD exposing FPS, draw calls, triangle count, enemy count, shots and hits.
-- A built-in QA architecture is documented in `QUALITY.md`; the repository is structured so future agent passes can be run independently.
+- First-person pointer-lock movement, sprint stamina, jump and bounds.
+- Procedural environment, layered cover, industrial silhouettes, soft shadows, atmospheric sky/fog and bloom.
+- Hitscan carbine, recoil, reload timing, tracers, particles and hit feedback.
+- Reactive AI combatants plus a combat director/scoring layer.
+- Procedural weapon/enemy animation.
+- Procedural Web Audio tactical feedback with browser-safe initialization.
+- Client snapshot/prediction primitives and an optional WebSocket multiplayer relay.
+- Runtime integration layer for network status, reduced-motion detection and diagnostics.
+- Automated smoke checks and GitHub Actions quality gate.
 
 ## Run
 
@@ -20,21 +21,28 @@ npm install
 npm run dev
 ```
 
-Build:
+For the relay server:
 
 ```bash
+npm run server
+```
+
+Quality:
+
+```bash
+npm run check
+npm test
 npm run build
-npm run preview
 ```
 
 ## Controls
 
 `WASD` move · `Shift` sprint · `Space` jump · `LMB` fire · `R` reload · `Esc` release mouse.
 
-## Rendering note
+## Asset policy
 
-The project targets Three.js `0.185.1`. The current Three.js documentation describes `WebGPURenderer` as the modern renderer with a WebGL 2 fallback; this slice intentionally uses `WebGLRenderer` first because the post-processing stack here relies on `EffectComposer`/`UnrealBloomPass` and keeps the baseline broadly compatible.
+The repository uses procedural/engine-native content and does not bundle proprietary Call of Duty assets. Shipped AAA parity would additionally require original authored assets, mocap, advanced audio, full level production, authoritative networking and extensive device testing.
 
-## Scope boundary
+## Quality / agent loop
 
-This is a playable technical foundation, not a claim of parity with a shipped Call of Duty title. AAA parity requires original high-resolution authored assets, mocap/animation systems, advanced audio, networked gameplay, production-level level design, extensive QA and substantial engineering/production resources.
+`AGENTS.md` defines independent rendering, environment, weapon, AI, animation, audio, performance, accessibility, QA and maintenance critics. `QUALITY.md` defines evidence-based acceptance criteria and explicitly disallows fabricated blind-comparison results.
