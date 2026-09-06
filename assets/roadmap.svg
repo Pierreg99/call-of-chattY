@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="600" viewBox="0 0 1400 600">
+<rect width="1400" height="600" fill="#061015"/><text x="55" y="65" fill="#f4f8f7" font-family="Arial" font-size="38" font-weight="700">CALL OF CHATTY — ROADMAP</text>
+<g font-family="Arial">
+<g fill="#20d99d" font-size="18" font-weight="700"><circle cx="100" cy="155" r="24"/><circle cx="100" cy="245" r="24"/><circle cx="100" cy="335" r="24"/><circle cx="100" cy="425" r="24"/></g>
+<g fill="#0a1116" font-size="17" text-anchor="middle"><text x="100" y="161">✓</text><text x="100" y="251">✓</text><text x="100" y="341">✓</text><text x="100" y="431">✓</text></g>
+<g fill="#dbe8e6" font-size="22"><text x="150" y="162">Core engine foundation</text><text x="150" y="252">AAA visual baseline</text><text x="150" y="342">Gameplay / weapons / feedback</text><text x="150" y="432">Multiplayer foundation</text></g>
+<g fill="#1a2a30"><line x1="100" y1="180" x2="100" y2="220" stroke="#2de5ad" stroke-width="4"/><line x1="100" y1="270" x2="100" y2="310" stroke="#2de5ad" stroke-width="4"/><line x1="100" y1="360" x2="100" y2="400" stroke="#2de5ad" stroke-width="4"/><line x1="100" y1="450" x2="100" y2="520" stroke="#5d7775" stroke-width="4"/></g>
+<g fill="#56c9b0" font-size="22"><text x="150" y="522">Next: authored assets + advanced AI + authoritative networking</text></g>
+<g fill="#78908d" font-size="17"><text x="150" y="556">Then: optimization → visual regression → release candidate → 1.0</text></g>
+</g></svg>
