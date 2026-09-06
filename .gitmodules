@@ -1,0 +1,9 @@
+[submodule "call-of-groky"]
+	path = call-of-groky
+	url = https://github.com/Pierreg99/call-of-groky.git
+[submodule "call-of-boty"]
+	path = call-of-boty
+	url = https://github.com/Pierreg99/call-of-boty.git
+[submodule "futuristic-call-of-shooty"]
+	path = futuristic-call-of-shooty
+	url = https://github.com/Pierreg99/futuristic-call-of-shooty.git
