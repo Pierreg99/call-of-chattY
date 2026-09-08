@@ -1,0 +1,32 @@
+{
+  "project": "call-of-chatty",
+  "version": "0.3.1",
+  "title": "Call of ChattY — AAA Tactical Three.js FPS",
+  "standard": "NEXUS PRIVÉ v6.0",
+  "zero_emoji": true,
+  "tokens": {
+    "palette": {
+      "obsidian": "#05070a",
+      "cryo": "#22d3ee",
+      "gold": "#f59e0b",
+      "emerald": "#10b981",
+      "danger": "#ef4444"
+    },
+    "typography": "Rajdhani, system-ui",
+    "touch_min": "44px"
+  },
+  "modules": [
+    "src/systems/kinetics.js",
+    "src/systems/input.js",
+    "src/systems/physics.js",
+    "src/systems/weapons.js",
+    "src/systems/audio.js",
+    "src/systems/animation.js",
+    "src/systems/director.js"
+  ],
+  "verification": {
+    "syntax": "100% PASS",
+    "smoke": "SMOKE PASS",
+    "subsystems": "100% PASS"
+  }
+}

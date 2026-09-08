@@ -1,0 +1,65 @@
+/**
+ * NEXUS PRIVÉ v6.0 Design Tokens — Call of ChattY AAA Tactical FPS
+ * Strict Zero-Emoji Protocol
+ */
+
+:root {
+  /* Core Base Obsidian Palette */
+  --c-obsidian-950: #030507;
+  --c-obsidian-900: #05070a;
+  --c-obsidian-800: #090d12;
+  --c-obsidian-700: #10161f;
+  --c-obsidian-600: #1a2330;
+
+  /* Cryo Cyan Accent */
+  --c-cryo-300: #67e8f9;
+  --c-cryo-500: #22d3ee;
+  --c-cryo-700: #0e7490;
+  --c-cryo-glow: rgba(34, 211, 238, 0.45);
+
+  /* Amber Gold Alerts & Hitmarkers */
+  --c-gold-300: #fbbf24;
+  --c-gold-500: #f59e0b;
+  --c-gold-700: #b45309;
+  --c-gold-glow: rgba(245, 158, 11, 0.45);
+
+  /* Emerald Vitality & Shields */
+  --c-emerald-300: #6ee7b7;
+  --c-emerald-500: #10b981;
+  --c-emerald-700: #047857;
+
+  /* Combat Red Damage */
+  --c-danger-500: #ef4444;
+  --c-danger-glow: rgba(239, 68, 68, 0.55);
+
+  /* Typography */
+  --font-tactical: "Rajdhani", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace, monospace;
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Motion Timing */
+  --motion-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-base: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-slow: 380ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Touch Envelopes (WCAG 2.5.5) */
+  --touch-min: 44px;
+  --touch-target-action: 64px;
+  --touch-joystick-radius: 65px;
+
+  /* Z-Index Hierarchy */
+  --z-canvas: 0;
+  --z-world-overlay: 10;
+  --z-hud: 20;
+  --z-touch-controls: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+}
