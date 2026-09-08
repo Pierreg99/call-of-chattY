@@ -13,7 +13,7 @@ import { TacticalAudio } from "./systems/audio.js";
 import { CombatDirector, scoreMultiplier, AI_STATES } from "./systems/director.js";
 import { CombatVFX } from "./systems/vfx.js";
 import { SpringDamper3D, WeaponKinetics } from "./systems/kinetics.js";
-import { WeaponManager, buildWeaponMesh, WEAPON_CONFIGS } from "./systems/weapons.js";
+import { WeaponManager, buildWeaponMesh, WEAPON_CONFIGS, WEAPON_TYPES } from "./systems/weapons.js";
 import { InputManager } from "./systems/input.js";
 import { ClientPrediction } from "./net/netcode.js";
 import { KillstreakManager, KILLSTREAK_TYPES } from "./systems/killstreaks.js";
@@ -92,28 +92,41 @@ composer.addPass(bloom);
 // 2. Client Prediction for Netcode Hardening
 const clientPrediction = new ClientPrediction(128);
 
-// 3. Procedural Sobel PBR Texturing (3x3 Sobel Operator)
+// 3. Procedural Sobel PBR Texturing (512x512 with Wet Reflections & AO)
 function createProceduralSobelPBR() {
-  const size = 256;
+  const size = 512;
   const cvH = document.createElement("canvas");
   cvH.width = cvH.height = size;
   const ctxH = cvH.getContext("2d");
   ctxH.fillStyle = "#808080";
   ctxH.fillRect(0, 0, size, size);
 
-  for (let x = 0; x < size; x += 32) {
-    for (let y = 0; y < size; y += 32) {
-      ctxH.fillStyle = "#aaaaaa";
-      ctxH.fillRect(x + 1, y + 1, 30, 30);
+  for (let x = 0; x < size; x += 64) {
+    for (let y = 0; y < size; y += 64) {
+      ctxH.fillStyle = "#a8a8a8";
+      ctxH.fillRect(x + 2, y + 2, 60, 60);
+      ctxH.fillStyle = "#c0c0c0";
+      ctxH.fillRect(x + 6, y + 6, 52, 52);
       ctxH.fillStyle = "#ffffff";
-      ctxH.fillRect(x + 3, y + 3, 2, 2);
-      ctxH.fillRect(x + 27, y + 3, 2, 2);
-      ctxH.fillStyle = "#101010";
-      ctxH.fillRect(x, y, size, 1);
-      ctxH.fillRect(x, y, 1, size);
+      ctxH.fillRect(x + 5, y + 5, 3, 3);
+      ctxH.fillRect(x + 56, y + 5, 3, 3);
+      ctxH.fillRect(x + 5, y + 56, 3, 3);
+      ctxH.fillRect(x + 56, y + 56, 3, 3);
+      ctxH.fillStyle = "#181818";
+      ctxH.fillRect(x, y, size, 2);
+      ctxH.fillRect(x, y, 2, size);
     }
   }
-  const hData = ctxH.getImageData(0, 0, size, size).data;
+
+  const hImg = ctxH.getImageData(0, 0, size, size);
+  const hData = hImg.data;
+  for (let i = 0; i < hData.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 12;
+    hData[i] = clamp(hData[i] + noise, 0, 255);
+    hData[i + 1] = clamp(hData[i + 1] + noise, 0, 255);
+    hData[i + 2] = clamp(hData[i + 2] + noise, 0, 255);
+  }
+  ctxH.putImageData(hImg, 0, 0);
 
   const cvN = document.createElement("canvas");
   cvN.width = cvN.height = size;
@@ -131,7 +144,7 @@ function createProceduralSobelPBR() {
         getH(x - 1, y + 1) + 2 * getH(x, y + 1) + getH(x + 1, y + 1) -
         (getH(x - 1, y - 1) + 2 * getH(x, y - 1) + getH(x + 1, y - 1));
 
-      const strength = 3.5;
+      const strength = 3.8;
       const nx = -dX * strength;
       const ny = -dY * strength;
       const nz = 1.0;
@@ -145,26 +158,62 @@ function createProceduralSobelPBR() {
   }
   ctxN.putImageData(nImg, 0, 0);
 
+  const cvR = document.createElement("canvas");
+  cvR.width = cvR.height = size;
+  const ctxR = cvR.getContext("2d");
+  ctxR.fillStyle = "#b8b8b8";
+  ctxR.fillRect(0, 0, size, size);
+
+  for (let x = 0; x < size; x += 64) {
+    ctxR.fillStyle = "#dedede";
+    ctxR.fillRect(x, 0, 2, size);
+    ctxR.fillRect(0, x, size, 2);
+  }
+
+  // Specular wet reflective puddle masks (roughness ~0.05)
+  ctxR.fillStyle = "#0c0c0c";
+  for (let p = 0; p < 7; p++) {
+    const px = Math.random() * size;
+    const py = Math.random() * size;
+    const pr = 22 + Math.random() * 40;
+    ctxR.beginPath();
+    ctxR.arc(px, py, pr, 0, Math.PI * 2);
+    ctxR.fill();
+  }
+
+  const cvAO = document.createElement("canvas");
+  cvAO.width = cvAO.height = size;
+  const ctxAO = cvAO.getContext("2d");
+  ctxAO.fillStyle = "#ffffff";
+  ctxAO.fillRect(0, 0, size, size);
+  ctxAO.fillStyle = "#484848";
+  for (let x = 0; x < size; x += 64) {
+    ctxAO.fillRect(x, 0, 2, size);
+    ctxAO.fillRect(0, x, size, 2);
+  }
+
   const cvD = document.createElement("canvas");
   cvD.width = cvD.height = size;
   const ctxD = cvD.getContext("2d");
   ctxD.fillStyle = "#1e282a";
   ctxD.fillRect(0, 0, size, size);
-  for (let x = 0; x < size; x += 32) {
-    for (let y = 0; y < size; y += 32) {
+  for (let x = 0; x < size; x += 64) {
+    for (let y = 0; y < size; y += 64) {
       ctxD.fillStyle = "#253435";
-      ctxD.fillRect(x + 1, y + 1, 30, 30);
-      ctxD.strokeStyle = "rgba(34, 211, 238, 0.18)";
-      ctxD.strokeRect(x + 1, y + 1, 30, 30);
+      ctxD.fillRect(x + 2, y + 2, 60, 60);
+      ctxD.strokeStyle = "rgba(34, 211, 238, 0.16)";
+      ctxD.strokeRect(x + 2, y + 2, 60, 60);
     }
   }
 
   const diffTex = new THREE.CanvasTexture(cvD);
   const normalTex = new THREE.CanvasTexture(cvN);
-  [diffTex, normalTex].forEach((t) => {
+  const roughnessTex = new THREE.CanvasTexture(cvR);
+  const aoTex = new THREE.CanvasTexture(cvAO);
+  [diffTex, normalTex, roughnessTex, aoTex].forEach((t) => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
   });
-  return { diffTex, normalTex };
+  return { diffTex, normalTex, roughnessTex, aoTex };
 }
 
 const sobelMaps = createProceduralSobelPBR();
@@ -201,7 +250,7 @@ const texGround = makeTex("#2c3c37", "#a6bfb3");
 const texMetal = makeTex("#1d2325", "#809a94");
 const texConcrete = makeTex("#5d635c", "#9ea6a0");
 
-function mat(color, rough = 0.72, metal = 0, map = null, normalMap = null) {
+function mat(color, rough = 0.72, metal = 0, map = null, normalMap = null, roughnessMap = null, aoMap = null) {
   return new THREE.MeshStandardMaterial({
     color,
     roughness: rough,
@@ -209,14 +258,17 @@ function mat(color, rough = 0.72, metal = 0, map = null, normalMap = null) {
     map,
     normalMap,
     normalScale: normalMap ? new THREE.Vector2(1.2, 1.2) : null,
+    roughnessMap,
+    aoMap,
+    aoMapIntensity: aoMap ? 1.0 : 0,
   });
 }
 
 const mats = {
-  ground: mat(0x56665d, 0.94, 0.05, texGround),
-  concrete: mat(0x6f726a, 0.82, 0.1, texConcrete),
-  metal: mat(0x283133, 0.45, 0.85, sobelMaps.diffTex, sobelMaps.normalTex),
-  dark: mat(0x101517, 0.42, 0.88, sobelMaps.diffTex, sobelMaps.normalTex),
+  ground: mat(0x56665d, 0.85, 0.05, texGround, null, sobelMaps.roughnessTex, sobelMaps.aoTex),
+  concrete: mat(0x6f726a, 0.80, 0.1, texConcrete, null, sobelMaps.roughnessTex),
+  metal: mat(0x283133, 0.45, 0.85, sobelMaps.diffTex, sobelMaps.normalTex, sobelMaps.roughnessTex, sobelMaps.aoTex),
+  dark: mat(0x101517, 0.42, 0.88, sobelMaps.diffTex, sobelMaps.normalTex, sobelMaps.roughnessTex, sobelMaps.aoTex),
   rubber: mat(0x090b0c, 1, 0),
   glass: new THREE.MeshPhysicalMaterial({
     color: 0x7fb4ab,
@@ -243,6 +295,13 @@ const mats = {
 // 4. Responsive Dual-Mode HUD DOM
 document.querySelector("#app").innerHTML = `
 <div id="hud">
+  <div id="tactical-compass">
+    <div id="compass-bearing">000° N</div>
+    <div id="compass-tape-window">
+      <div id="compass-needle"></div>
+      <div id="compass-tape"></div>
+    </div>
+  </div>
   <div id="topbar">
     <div id="radar-panel">
       <div id="radar-sweep"></div>
@@ -254,11 +313,20 @@ document.querySelector("#app").innerHTML = `
     <div class="panel"><div class="kicker">SCORE / STREAK</div><div class="value"><span id="score">000000</span> <span style="font-size:14px;color:#f59e0b" id="streakDisplay">x0</span></div></div>
     <div class="panel"><div class="kicker">TELEMETRY</div><div class="value" id="perf">— FPS</div></div>
   </div>
-  <div id="reticle"></div>
+  <div id="reticle">
+    <div class="reticle-dot"></div>
+    <div class="reticle-bar reticle-top"></div>
+    <div class="reticle-bar reticle-bottom"></div>
+    <div class="reticle-bar reticle-left"></div>
+    <div class="reticle-bar reticle-right"></div>
+  </div>
   <div id="hitmarker"></div>
   <div id="sniper-scope"></div>
   <div id="nvg-overlay"></div>
-  <div id="crosshairHint">LMB / TOUCH FIRE · RMB / ADS · 1-6 WEAPONS · 7/U UAV · 8/J STRIKE · N NVG</div>
+  <div id="low-health-vignette"></div>
+  <div id="damage-arcs"><div class="damage-arc" id="damage-arc"></div></div>
+  <div id="killfeed"></div>
+  <div id="crosshairHint">LMB / TOUCH FIRE · RMB / ADS · 1-6 WEAPONS · 7/U UAV · 8/J STRIKE · N NVG · I INSPECT · C SLIDE</div>
   <div id="vitals" class="panel">
     <div class="kicker">SYSTEMS / HEALTH</div>
     <div class="value"><span id="health">100</span>%</div>
@@ -295,6 +363,8 @@ document.querySelector("#app").innerHTML = `
     <div class="touch-btn-cluster">
       <button class="touch-action-btn" id="touch-btn-jump">JUMP</button>
       <button class="touch-action-btn" id="touch-btn-ads">ADS</button>
+      <button class="touch-action-btn" id="touch-btn-inspect">INSP</button>
+      <button class="touch-action-btn" id="touch-btn-slide">SLIDE</button>
       <button class="touch-action-btn btn-tactical" id="touch-btn-uav">UAV</button>
       <button class="touch-action-btn" id="touch-btn-sprint">SPRINT</button>
       <button class="touch-action-btn" id="touch-btn-reload">RELOAD</button>
@@ -345,11 +415,6 @@ function box(name, size, pos, material, cast = false, isDynamic = false) {
 function buildWorld() {
   const floor = box("terrain", [CFG.world, 0.8, CFG.world], [0, -0.4, 0], mats.ground, false);
   floor.material.map.repeat.set(28, 28);
-  const grid = new THREE.GridHelper(CFG.world, 90, 0x68877b, 0x30443f);
-  grid.position.y = 0.015;
-  grid.material.opacity = 0.16;
-  grid.material.transparent = true;
-  scene.add(grid);
 
   // Procedural cover blocks and defensive structures
   for (let i = 0; i < 56; i++) {
@@ -414,6 +479,93 @@ const weaponAnimator = new WeaponAnimator(weaponManager.viewmodelRoot, kinetics)
 const tracerPool = new ProjectileTracer(scene);
 const combatVFX = new CombatVFX(scene, camera);
 
+// Tactical Compass Ribbon Initialization
+function initCompassTape() {
+  const tape = $("compass-tape");
+  if (!tape) return;
+  const cardinals = {
+    0: "N",
+    45: "NE",
+    90: "E",
+    135: "SE",
+    180: "S",
+    225: "SW",
+    270: "W",
+    315: "NW",
+  };
+  let html = "";
+  for (let cycle = -1; cycle <= 1; cycle++) {
+    for (let deg = 0; deg < 360; deg += 15) {
+      const isCard = cardinals[deg] !== undefined;
+      const text = isCard ? cardinals[deg] : deg.toString();
+      html += `<span class="compass-tick ${isCard ? "cardinal" : ""}">${text}</span>`;
+    }
+  }
+  tape.innerHTML = html;
+}
+initCompassTape();
+
+function updateCompass(yawRad) {
+  const bearingEl = $("compass-bearing");
+  const tape = $("compass-tape");
+  if (!bearingEl || !tape) return;
+
+  let deg = (-yawRad * (180 / Math.PI)) % 360;
+  if (deg < 0) deg += 360;
+
+  const cardinals = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const cardIndex = Math.round(deg / 45) % 8;
+  bearingEl.textContent = `${Math.round(deg).toString().padStart(3, "0")}° ${cardinals[cardIndex]}`;
+
+  const offsetPx = (deg * 2.4) + 864;
+  tape.style.transform = `translateX(-${offsetPx}px)`;
+}
+
+function registerKillfeed(actor, weapon, target, isHeadshot = false) {
+  const feed = $("killfeed");
+  if (!feed) return;
+  const entry = document.createElement("div");
+  entry.className = `killfeed-entry ${isHeadshot ? "headshot" : ""}`;
+  entry.innerHTML = `
+    <span class="kf-actor">${actor}</span>
+    <span class="kf-weapon">[${weapon}]</span>
+    <span class="kf-target">${target}</span>
+    ${isHeadshot ? '<span class="kf-crit">CRIT</span>' : ""}
+  `;
+  feed.appendChild(entry);
+  while (feed.children.length > 5) {
+    feed.removeChild(feed.firstChild);
+  }
+  setTimeout(() => {
+    if (entry.parentNode === feed) {
+      feed.removeChild(entry);
+    }
+  }, 4500);
+}
+
+let damageArcTimer = 0;
+function showDamageArc(sourcePos) {
+  const arc = $("damage-arc");
+  if (!arc) return;
+
+  const camFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  camFwd.y = 0;
+  camFwd.normalize();
+
+  const toSource = new THREE.Vector3().subVectors(sourcePos, camera.position);
+  toSource.y = 0;
+  toSource.normalize();
+
+  const angle = Math.atan2(
+    toSource.x * camFwd.z - toSource.z * camFwd.x,
+    camFwd.x * toSource.x + camFwd.z * toSource.z
+  );
+
+  arc.style.transform = `rotate(${angle}rad)`;
+  arc.style.opacity = "1";
+  damageArcTimer = 0.55;
+}
+
 const killstreakManager = new KillstreakManager({
   audio,
   kinetics,
@@ -422,9 +574,9 @@ const killstreakManager = new KillstreakManager({
     state.score += 250;
   },
   onAirstrikeImpact: (pos, radius) => {
-    spawnParticles(pos, 0xff4422, 50);
-    spawnParticles(pos, 0xffcc33, 35);
-    spawnParticles(pos, 0x555555, 30);
+    combatVFX.spawnExplosion(pos, radius || 8.0, 0xff3311);
+    audio.explosion(pos);
+    kinetics.addTrauma(0.85);
   },
 });
 
@@ -499,15 +651,25 @@ class RoboticCombatant {
     scene.add(this.group);
   }
 
-  takeDamage(d, hitPoint) {
+  takeDamage(d, hitPoint, isHeadshot = false) {
     if (!this.alive) return;
     this.hp -= d;
     state.hits++;
-    state.hitMarkerT = 0.14;
-    audio.hit();
+    state.hitMarkerT = 0.16;
+
+    const hm = $("hitmarker");
+    if (hm) {
+      hm.className = isHeadshot ? "hit-headshot show" : "show";
+    }
+
+    if (isHeadshot) {
+      audio.hit();
+    } else {
+      audio.hit();
+    }
 
     if (hitPoint) {
-      spawnParticles(hitPoint, 0xffe484, 8);
+      spawnParticles(hitPoint, isHeadshot ? 0xf59e0b : 0xffe484, 10);
     }
 
     if (this.hp <= 0) {
@@ -518,8 +680,12 @@ class RoboticCombatant {
       const gained = scoreMultiplier({ kill: true, streak: state.streak });
       state.score += gained;
       audio.kill();
-      spawnParticles(this.group.position, 0xb6fff0, 24);
-      toast(`KILL CONFIRMED +${gained}`);
+      if (hm) {
+        hm.className = "hit-kill show";
+      }
+      combatVFX.spawnExplosion(this.group.position, 2.5, 0xef4444);
+      registerKillfeed("OPERATOR", weaponManager.getCurrentWeapon().name, `ROBOT-${this.id + 1}`, isHeadshot);
+      toast(`KILL CONFIRMED +${gained}${isHeadshot ? " (HEADSHOT)" : ""}`);
     }
   }
 
@@ -556,7 +722,7 @@ const director = new CombatDirector({
     // Enemy weapon discharge towards player
     const muzzle = enemy.group.position.clone();
     muzzle.y += 1.3;
-    tracerPool.spawn(muzzle, playerPos, new THREE.LineBasicMaterial({ color: 0xff4444 }));
+    combatVFX.spawnTracer(muzzle, playerPos, 0xef4444, 320);
     audio.fireCarbine(muzzle);
 
     // Near-miss flyby check
@@ -572,6 +738,8 @@ const director = new CombatDirector({
       state.damageFlash = 0.65;
       audio.damage();
       kinetics.addTrauma(0.24);
+      showDamageArc(enemy.group.position);
+      combatVFX.spawnImpact(playerPos, new THREE.Vector3(0, 1, 0), "enemy");
       if (state.health <= 0) {
         state.streak = 0;
         killstreakManager.resetOnDeath();
@@ -642,12 +810,11 @@ function updateGrenades(dt) {
     const g = activeGrenades[i];
     g.timer -= dt;
     if (g.timer <= 0) {
-      // Detonate grenade
+      // Detonate grenade with volumetric explosion
       const blastPos = new THREE.Vector3(g.body.position.x, g.body.position.y, g.body.position.z);
       audio.explosion(blastPos);
       kinetics.addTrauma(0.65);
-      spawnParticles(blastPos, 0xff5533, 40);
-      spawnParticles(blastPos, 0xffe484, 25);
+      combatVFX.spawnExplosion(blastPos, g.radius, 0xff5533);
 
       // AoE damage check against enemies
       enemies.forEach((e) => {
@@ -723,9 +890,7 @@ function updateRockets(dt) {
     if (currentPos.y <= 0.2 || r.timer <= 0 || collided) {
       audio.playRocketExplosion(currentPos);
       kinetics.addTrauma(0.85);
-      spawnParticles(currentPos, 0xff4422, 60);
-      spawnParticles(currentPos, 0xffcc33, 40);
-      spawnParticles(currentPos, 0x555555, 30);
+      combatVFX.spawnExplosion(currentPos, r.radius, 0xff4422);
 
       enemies.forEach((e) => {
         if (!e.alive) return;
@@ -754,26 +919,38 @@ function handleRaycastShot(raycaster, damage, pelletIndex) {
 
   const intersects = raycaster.intersectObjects(hitCandidates, false);
   const muzzlePos = camera.position.clone().add(new THREE.Vector3(0.2, -0.2, -0.4).applyQuaternion(camera.quaternion));
+  const currWeapon = weaponManager.getCurrentWeapon();
+
+  let tracerColor = 0xffe484;
+  if (currWeapon.id === WEAPON_TYPES.SHOTGUN) tracerColor = 0x22d3ee;
+  else if (currWeapon.id === WEAPON_TYPES.SNIPER) tracerColor = 0xc084fc;
+  else if (currWeapon.id === WEAPON_TYPES.AKIMBO) tracerColor = 0xf59e0b;
 
   if (intersects.length > 0) {
     const hit = intersects[0];
-    tracerPool.spawn(muzzlePos, hit.point);
+    combatVFX.spawnTracer(muzzlePos, hit.point, tracerColor);
 
     let enemyOwner = hit.object.parent;
     while (enemyOwner && !enemyOwner.userData.enemy) {
       enemyOwner = enemyOwner.parent;
     }
     const enemy = enemies.find((e) => e.group === enemyOwner);
+    const hitNormal = hit.face ? hit.face.normal.clone().applyQuaternion(hit.object.quaternion) : new THREE.Vector3(0, 1, 0);
+
     if (enemy) {
-      enemy.takeDamage(damage, hit.point);
-      return { hit: true, target: "enemy" };
+      const isHeadshot = hit.point.y > enemy.group.position.y + 1.85;
+      const actualDmg = isHeadshot ? Math.round(damage * (currWeapon.headshotMultiplier || 1.5)) : damage;
+      enemy.takeDamage(actualDmg, hit.point, isHeadshot);
+      combatVFX.spawnImpact(hit.point, hitNormal, "enemy");
+      return { hit: true, target: "enemy", headshot: isHeadshot };
     } else {
-      spawnParticles(hit.point, 0x8be4d8, 5);
+      const isMetal = hit.object.name && (hit.object.name.includes("barrier") || hit.object.name.includes("tower"));
+      combatVFX.spawnImpact(hit.point, hitNormal, isMetal ? "metal" : "concrete");
       return { hit: true, target: "environment" };
     }
   } else {
     const farPoint = raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, 80);
-    tracerPool.spawn(muzzlePos, farPoint);
+    combatVFX.spawnTracer(muzzlePos, farPoint, tracerColor);
     return null;
   }
 }
@@ -791,6 +968,38 @@ function updateUI(dt) {
   $("ammoReserve").textContent = ` / ${curr.reserve}`;
   $("damage").style.opacity = state.damageFlash.toFixed(2);
   $("waveInfo").textContent = `WAVE ${state.wave} (${enemies.filter((e) => e.alive).length})`;
+
+  // Tactical Compass Update
+  const playerEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
+  updateCompass(playerEuler.y);
+
+  // Directional Damage Arc Fade
+  if (damageArcTimer > 0) {
+    damageArcTimer = Math.max(0, damageArcTimer - dt);
+    if (damageArcTimer <= 0) {
+      const arc = $("damage-arc");
+      if (arc) arc.style.opacity = "0";
+    }
+  }
+
+  // Low-Health Distress Screen Vignette
+  const vignette = $("low-health-vignette");
+  if (vignette) {
+    if (state.health < 35 && state.health > 0) {
+      vignette.classList.add("pulsing");
+    } else {
+      vignette.classList.remove("pulsing");
+    }
+  }
+
+  // Dynamic Reticle Bloom Gap
+  const reticle = $("reticle");
+  if (reticle) {
+    const recoilMag = kinetics.recoilSpring.position.length();
+    const speedEst = (player.body && player.body.velocity) ? player.body.velocity.length() : 0;
+    const gap = Math.round(8 + speedEst * 1.8 + recoilMag * 45);
+    reticle.style.setProperty("--reticle-gap", `${gap}px`);
+  }
 
   // Update weapon slot indicator (0 to 5)
   for (let s = 0; s < 6; s++) {
@@ -848,7 +1057,6 @@ function updateUI(dt) {
       const deg = (killstreakManager.uavSweepAngle * 180) / Math.PI;
       radarSweep.style.transform = `rotate(${deg}deg)`;
 
-      const playerEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
       const radarData = killstreakManager.getRadarBlips(camera.position, playerEuler.y, enemies, 65.0);
       let blipsHtml = "";
       for (const blip of radarData.blips) {
@@ -904,6 +1112,12 @@ function tick() {
     // 1. Poll Inputs
     const input = inputManager.poll(camera, kinetics);
 
+    // 1b. Tactical Weapon Inspection
+    if (input.inspect) {
+      weaponManager.inspectWeapon();
+      toast("INSPECTING OPERATOR WEAPON");
+    }
+
     // 2. Weapon Slot Switching
     if (input.selectedSlot !== null) {
       if (typeof input.selectedSlot === "number") {
@@ -929,12 +1143,23 @@ function tick() {
       killstreakManager.activateAirstrike(targetPos);
     }
 
-    // 3. Movement & Stamina
-    const speed = input.sprinting && state.stamina > 0 ? CFG.sprint : CFG.walk;
-    if (input.sprinting) {
-      state.stamina = clamp(state.stamina - dt * 18, 0, 100);
+    // 3. Movement, Tac-Sprint & Power Slide
+    const isTacSprint = input.tacSprinting && state.stamina > 10;
+    const isSlide = input.sliding && (input.sprinting || isTacSprint || player.grounded);
+
+    let speed = CFG.walk;
+    if (isTacSprint) {
+      speed = 17.5;
+      state.stamina = clamp(state.stamina - dt * 26, 0, 100);
+    } else if (input.sprinting && state.stamina > 0) {
+      speed = CFG.sprint;
+      state.stamina = clamp(state.stamina - dt * 16, 0, 100);
     } else {
-      state.stamina = clamp(state.stamina + dt * 16, 0, 100);
+      state.stamina = clamp(state.stamina + dt * 18, 0, 100);
+    }
+
+    if (isSlide) {
+      speed = Math.max(speed, 15.5);
     }
 
     const moveWish = input.moveDir.clone();
@@ -950,7 +1175,7 @@ function tick() {
     physicsWorld.step(dt);
     physicsWorld.sync();
 
-    // 5. Weapon Fire & ADS
+    // 5. Weapon Fire, Shell Ejection & ADS
     weaponManager.setAds(input.ads);
     if (input.reload) {
       weaponManager.startReload();
@@ -963,16 +1188,29 @@ function tick() {
         enemies,
       });
       combatVFX.muzzleFlash(0.045);
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      const shellPos = camera.position.clone()
+        .addScaledVector(fwd, 0.28)
+        .addScaledVector(right, 0.14);
+      shellPos.y -= 0.12;
+      combatVFX.spawnShell(shellPos, fwd, right, weaponManager.getCurrentWeapon().id);
     }
 
     weaponManager.update(dt, {
       moving: input.moving,
       sprinting: input.sprinting,
+      tacSprinting: isTacSprint,
+      sliding: isSlide,
     });
 
-    // 6. Camera FOV smoothly interpolated
+    // 6. Camera FOV smoothly interpolated with Tac-Sprint boost
     const currWeapon = weaponManager.getCurrentWeapon();
-    const targetFov = weaponManager.isAds ? currWeapon.adsFov : currWeapon.hipFov;
+    let targetFov = weaponManager.isAds ? currWeapon.adsFov : currWeapon.hipFov;
+    if (!weaponManager.isAds) {
+      if (isTacSprint) targetFov += 10;
+      else if (input.sprinting) targetFov += 4;
+    }
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 1 - Math.exp(-12 * dt));
     camera.updateProjectionMatrix();
 

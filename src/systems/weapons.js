@@ -199,6 +199,120 @@ export const WEAPON_CONFIGS = Object.freeze([
 ]);
 
 /**
+ * Builds procedural first-person operator arms and tactical gloves.
+ */
+export function buildOperatorArms(mats, leftGrip = null, rightGrip = null) {
+  const armsGroup = new THREE.Group();
+  armsGroup.name = "operatorArms";
+
+  const sleeveMat = new THREE.MeshStandardMaterial({
+    color: 0x161c1e,
+    roughness: 0.85,
+    metalness: 0.05,
+  });
+  const gloveMat = new THREE.MeshStandardMaterial({
+    color: 0x090b0c,
+    roughness: 0.6,
+    metalness: 0.2,
+  });
+  const armorMat = mats?.metal || sleeveMat;
+  const knuckleMat = mats?.dark || gloveMat;
+
+  // Biometric smart-display wristband canvas texture
+  const bioCanvas = document.createElement("canvas");
+  bioCanvas.width = 128;
+  bioCanvas.height = 64;
+  const bctx = bioCanvas.getContext("2d");
+  bctx.fillStyle = "#031214";
+  bctx.fillRect(0, 0, 128, 64);
+  bctx.strokeStyle = "rgba(34, 211, 238, 0.4)";
+  bctx.strokeRect(2, 2, 124, 60);
+  bctx.fillStyle = "#22d3ee";
+  bctx.font = "bold 14px monospace";
+  bctx.fillText("BPM 74", 10, 22);
+  bctx.fillText("BIO-SYNC", 10, 42);
+  bctx.fillStyle = "#10b981";
+  bctx.fillRect(10, 48, 64, 6);
+  const bioTex = new THREE.CanvasTexture(bioCanvas);
+
+  const screenMat = new THREE.MeshBasicMaterial({
+    map: bioTex,
+    transparent: true,
+    opacity: 0.95,
+  });
+
+  // 1. Right Arm (Trigger & Main Grip)
+  const rightArm = new THREE.Group();
+  const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.44, 10), sleeveMat);
+  rForearm.position.set(0.18, -0.28, 0.22);
+  rForearm.rotation.set(0.7, -0.25, -0.4);
+  rightArm.add(rForearm);
+
+  const watch = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.05, 12), armorMat);
+  watch.position.set(0.13, -0.21, 0.14);
+  watch.rotation.set(0.7, -0.25, -0.4);
+  rightArm.add(watch);
+
+  const watchScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.045, 0.026), screenMat);
+  watchScreen.position.set(0.11, -0.18, 0.15);
+  watchScreen.rotation.set(-0.6, 0.8, -0.4);
+  rightArm.add(watchScreen);
+
+  const rHand = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.085, 0.11), gloveMat);
+  const rg = rightGrip || new THREE.Vector3(0.04, -0.15, 0.06);
+  rHand.position.copy(rg);
+  rHand.rotation.set(0.2, -0.1, -0.15);
+  rightArm.add(rHand);
+
+  // Knuckle armor guard on glove
+  const rKnuckles = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.022, 0.04), knuckleMat);
+  rKnuckles.position.set(rg.x - 0.01, rg.y + 0.04, rg.z - 0.02);
+  rightArm.add(rKnuckles);
+
+  const rFinger = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.06), gloveMat);
+  rFinger.position.set(rg.x - 0.02, rg.y + 0.02, rg.z - 0.07);
+  rightArm.add(rFinger);
+
+  const rThumb = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.05), gloveMat);
+  rThumb.position.set(rg.x + 0.03, rg.y + 0.01, rg.z - 0.03);
+  rightArm.add(rThumb);
+
+  armsGroup.add(rightArm);
+
+  // 2. Left Arm (Support Handguard)
+  if (leftGrip !== false) {
+    const leftArm = new THREE.Group();
+    const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.48, 10), sleeveMat);
+    lForearm.position.set(-0.22, -0.30, 0.12);
+    lForearm.rotation.set(0.9, 0.4, 0.35);
+    leftArm.add(lForearm);
+
+    const lHand = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.12), gloveMat);
+    const lg = leftGrip || new THREE.Vector3(-0.03, -0.06, -0.36);
+    lHand.position.copy(lg);
+    lHand.rotation.set(-0.2, 0.3, 0.25);
+    leftArm.add(lHand);
+
+    // Left hand knuckle guard
+    const lKnuckles = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.024, 0.042), knuckleMat);
+    lKnuckles.position.set(lg.x, lg.y + 0.04, lg.z);
+    leftArm.add(lKnuckles);
+
+    const lFingers = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.04, 0.08), gloveMat);
+    lFingers.position.set(lg.x, lg.y + 0.03, lg.z);
+    leftArm.add(lFingers);
+
+    const lThumb = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.024, 0.05), gloveMat);
+    lThumb.position.set(lg.x - 0.04, lg.y + 0.02, lg.z + 0.02);
+    leftArm.add(lThumb);
+
+    armsGroup.add(leftArm);
+  }
+
+  return armsGroup;
+}
+
+/**
  * Builds stylized 3D weapon meshes using Three.js geometries and materials.
  */
 export function buildWeaponMesh(id, materials = null) {
@@ -234,10 +348,37 @@ export function buildWeaponMesh(id, materials = null) {
     muzzle.position.z = -1.06;
     root.add(muzzle);
 
-    const optic = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 14), mats.glass);
-    optic.rotation.x = Math.PI / 2;
-    optic.position.set(0, 0.16, -0.2);
-    root.add(optic);
+    // Top Picatinny Rail
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.44), mats.metal);
+    rail.position.set(0, 0.085, -0.18);
+    root.add(rail);
+
+    // Holographic Reflex Sight Housing with Illuminated Collimated Reticle
+    const opticHood = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.075, 0.14), mats.metal);
+    opticHood.position.set(0, 0.16, -0.2);
+    root.add(opticHood);
+
+    const opticLens = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.01, 14), mats.glass);
+    opticLens.rotation.x = Math.PI / 2;
+    opticLens.position.set(0, 0.16, -0.21);
+    root.add(opticLens);
+
+    // Illuminated collimated reticle dot inside the optic
+    const reticleDotMat = new THREE.MeshBasicMaterial({
+      color: 0x22d3ee,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const reticleDot = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.012), reticleDotMat);
+    reticleDot.position.set(0, 0.16, -0.22);
+    root.add(reticleDot);
+
+    const reticleRing = new THREE.Mesh(new THREE.RingGeometry(0.016, 0.020, 16), reticleDotMat);
+    reticleRing.position.set(0, 0.16, -0.22);
+    root.add(reticleRing);
 
     const mag = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.14), mats.metal);
     mag.position.set(0, -0.16, -0.05);
@@ -247,6 +388,20 @@ export function buildWeaponMesh(id, materials = null) {
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.32), mats.rubber);
     stock.position.z = 0.42;
     root.add(stock);
+
+    // Rigged Tactical Operator Arms
+    root.add(buildOperatorArms(mats, new THREE.Vector3(-0.02, -0.05, -0.36), new THREE.Vector3(0.03, -0.15, 0.06)));
+
+    // Muzzle & Shell Ejection Sockets
+    const muzzleSocket = new THREE.Group();
+    muzzleSocket.name = "muzzleSocket";
+    muzzleSocket.position.set(0, 0, -1.14);
+    root.add(muzzleSocket);
+
+    const shellSocket = new THREE.Group();
+    shellSocket.name = "shellSocket";
+    shellSocket.position.set(0.08, 0, -0.15);
+    root.add(shellSocket);
   } else if (id === WEAPON_TYPES.SHOTGUN || id === "shotgun") {
     const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.62), mats.metal);
     receiver.castShadow = true;
@@ -269,6 +424,19 @@ export function buildWeaponMesh(id, materials = null) {
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.19, 0.38), mats.concrete || mats.dark);
     stock.position.set(0, -0.04, 0.44);
     root.add(stock);
+
+    // Operator Arms
+    root.add(buildOperatorArms(mats, new THREE.Vector3(-0.02, -0.05, -0.44), new THREE.Vector3(0.04, -0.15, 0.08)));
+
+    const muzzleSocket = new THREE.Group();
+    muzzleSocket.name = "muzzleSocket";
+    muzzleSocket.position.set(0, 0.04, -0.92);
+    root.add(muzzleSocket);
+
+    const shellSocket = new THREE.Group();
+    shellSocket.name = "shellSocket";
+    shellSocket.position.set(0.09, 0.02, -0.22);
+    root.add(shellSocket);
   } else if (id === WEAPON_TYPES.SNIPER || id === "sniper") {
     const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.16, 0.72), mats.metal);
     receiver.castShadow = true;
@@ -300,6 +468,19 @@ export function buildWeaponMesh(id, materials = null) {
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.18, 0.42), mats.rubber);
     stock.position.z = 0.5;
     root.add(stock);
+
+    // Operator Arms
+    root.add(buildOperatorArms(mats, new THREE.Vector3(-0.02, -0.04, -0.48), new THREE.Vector3(0.04, -0.16, 0.10)));
+
+    const muzzleSocket = new THREE.Group();
+    muzzleSocket.name = "muzzleSocket";
+    muzzleSocket.position.set(0, 0.02, -1.42);
+    root.add(muzzleSocket);
+
+    const shellSocket = new THREE.Group();
+    shellSocket.name = "shellSocket";
+    shellSocket.position.set(0.08, 0.05, -0.12);
+    root.add(shellSocket);
   } else if (id === WEAPON_TYPES.GRENADE || id === "grenade") {
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 16), mats.dark);
     root.add(can);
@@ -311,6 +492,14 @@ export function buildWeaponMesh(id, materials = null) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.008, 8, 16), mats.light);
     ring.position.set(0.04, 0.12, 0);
     root.add(ring);
+
+    // Operator Arm
+    root.add(buildOperatorArms(mats, false, new THREE.Vector3(0.0, -0.08, 0.0)));
+
+    const muzzleSocket = new THREE.Group();
+    muzzleSocket.name = "muzzleSocket";
+    muzzleSocket.position.set(0, 0, -0.2);
+    root.add(muzzleSocket);
   } else if (id === WEAPON_TYPES.AKIMBO || id === "akimbo") {
     // Dual-wield tactical pistols: left and right
     const makePistol = (offsetX) => {
@@ -340,6 +529,17 @@ export function buildWeaponMesh(id, materials = null) {
 
     root.add(makePistol(-0.19));
     root.add(makePistol(0.19));
+    root.add(buildOperatorArms(mats, false, new THREE.Vector3(0.19, -0.12, 0.06)));
+
+    const muzzleSocket = new THREE.Group();
+    muzzleSocket.name = "muzzleSocket";
+    muzzleSocket.position.set(0.19, 0.01, -0.32);
+    root.add(muzzleSocket);
+
+    const shellSocket = new THREE.Group();
+    shellSocket.name = "shellSocket";
+    shellSocket.position.set(0.24, 0.03, -0.12);
+    root.add(shellSocket);
   } else if (id === WEAPON_TYPES.RPG || id === "rpg") {
     // Heavy RPG-7 launch tube
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 1.18, 16), mats.dark);
@@ -381,6 +581,19 @@ export function buildWeaponMesh(id, materials = null) {
     const sight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.1), mats.metal);
     sight.position.set(-0.065, 0.08, -0.1);
     root.add(sight);
+
+    // Operator Arms
+    root.add(buildOperatorArms(mats, new THREE.Vector3(-0.04, 0.02, -0.22), new THREE.Vector3(0.02, -0.15, -0.06)));
+
+    const muzzleSocket = new THREE.Group();
+    muzzleSocket.name = "muzzleSocket";
+    muzzleSocket.position.set(0, 0, -1.02);
+    root.add(muzzleSocket);
+
+    const shellSocket = new THREE.Group();
+    shellSocket.name = "shellSocket";
+    shellSocket.position.set(0, 0, 0.65);
+    root.add(shellSocket);
   }
 
   return root;
@@ -482,6 +695,13 @@ export class WeaponArsenal {
       hipPos: this.current.hipPos,
       adsPos: this.current.adsPos,
     };
+  }
+
+  inspectWeapon() {
+    if (this.kinetics?.triggerInspect) {
+      return this.kinetics.triggerInspect();
+    }
+    return false;
   }
 
   selectWeapon(slotIndex) {
@@ -892,7 +1112,7 @@ export class WeaponArsenal {
   /**
    * Frame update driving cooldown timers, 4-stage tactical reload, and viewmodel kinetics.
    */
-  update(dt, { moving = false, sprinting = false } = {}) {
+  update(dt, { moving = false, sprinting = false, tacSprinting = false, sliding = false } = {}) {
     const delta = Math.max(0, dt);
 
     // Fire cooldown tick
@@ -962,6 +1182,8 @@ export class WeaponArsenal {
       this.kinetics.update(delta, {
         moving,
         sprinting,
+        tacSprinting,
+        sliding,
         isAds: this.isAds,
         hipPos: this.current.hipPos,
         adsPos: this.current.adsPos,

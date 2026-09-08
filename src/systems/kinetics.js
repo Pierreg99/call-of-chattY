@@ -189,7 +189,24 @@ export class WeaponKinetics {
 
     // Procedural modifiers
     this.sprintTilt = 0;
+    this.tacSprintTilt = 0;
+    this.slideTilt = 0;
     this.reloadRoll = 0;
+    this.reloadPitch = 0;
+    this.reloadOffset = new THREE.Vector3();
+
+    // Tactical Weapon Inspection state
+    this.inspectTimer = 0;
+    this.inspectDuration = 2.4;
+    this.inspectPitch = 0;
+    this.inspectYaw = 0;
+    this.inspectRoll = 0;
+  }
+
+  triggerInspect() {
+    if (this.isAds) return false;
+    this.inspectTimer = this.inspectDuration;
+    return true;
   }
 
   setHipAndAds(hipPos, adsPos, isAds = false) {
@@ -233,7 +250,7 @@ export class WeaponKinetics {
     this.trauma = Math.min(1.0, Math.max(0, this.trauma + amount));
   }
 
-  update(dt, { moving = false, sprinting = false, isAds = undefined, hipPos = null, adsPos = null, speed = null, maxSpeed = null, onFootstep = null } = {}) {
+  update(dt, { moving = false, sprinting = false, tacSprinting = false, sliding = false, isAds = undefined, hipPos = null, adsPos = null, speed = null, maxSpeed = null, onFootstep = null } = {}) {
     const delta = Math.min(Math.max(dt, 0), 0.05);
 
     if (hipPos) this.hipPos.copy(hipPos);
@@ -248,18 +265,14 @@ export class WeaponKinetics {
     this.adsSpring.update(delta);
 
     // Harmonic head bobbing:
-    // phi_{t+dt} = phi_t + dt * (isSprinting ? 15 : 10) * (v_xz / v_max)
-    // bob_y = sin(phi) * 0.035
-    // bob_x = cos(0.5 * phi) * 0.020
-    // Footstep callback at trough sin(phi) < -0.88
     if (moving) {
       const velRatio = (speed !== null && maxSpeed) ? Math.min(1, Math.max(0, speed / maxSpeed)) : 1.0;
-      const bobFreq = (sprinting ? 15 : 10) * velRatio;
+      const bobFreq = ((tacSprinting ? 20 : (sprinting ? 15 : 10))) * velRatio;
       this.bobPhase += delta * bobFreq;
 
       const curSin = Math.sin(this.bobPhase);
-      this.bobOffset.y = curSin * 0.035;
-      this.bobOffset.x = Math.cos(this.bobPhase * 0.5) * 0.020;
+      this.bobOffset.y = curSin * (tacSprinting ? 0.048 : 0.035);
+      this.bobOffset.x = Math.cos(this.bobPhase * 0.5) * (tacSprinting ? 0.028 : 0.020);
 
       if (curSin < -0.88 && this.prevSinBob >= -0.88) {
         if (typeof onFootstep === "function") {
@@ -273,9 +286,6 @@ export class WeaponKinetics {
     }
 
     // Camera trauma non-linear decay:
-    // tau_{t+dt} = max(0, tau_t - 1.35 * dt)
-    // shake = tau^2
-    // rotational perturbation +/- 0.05 * tau^2
     if (this.trauma > 0) {
       this.trauma = Math.max(0, this.trauma - 1.35 * delta);
       const shake = this.trauma * this.trauma;
@@ -288,29 +298,76 @@ export class WeaponKinetics {
       this.shakeRot.set(0, 0, 0);
     }
 
-    // Sprint down angle damp
-    const targetSprint = (sprinting && !this.isAds) ? 1.0 : 0.0;
+    // Sprint & Tac-Sprint down/up angles
+    const targetSprint = (sprinting && !tacSprinting && !this.isAds) ? 1.0 : 0.0;
     this.sprintTilt += (targetSprint - this.sprintTilt) * Math.min(1, delta * 12);
+
+    const targetTacSprint = (tacSprinting && !this.isAds) ? 1.0 : 0.0;
+    this.tacSprintTilt += (targetTacSprint - this.tacSprintTilt) * Math.min(1, delta * 14);
+
+    const targetSlide = (sliding && !this.isAds) ? 1.0 : 0.0;
+    this.slideTilt += (targetSlide - this.slideTilt) * Math.min(1, delta * 15);
+
+    // Tactical Weapon Inspection calculation
+    if (this.inspectTimer > 0) {
+      if (this.isAds || sprinting || tacSprinting) {
+        this.inspectTimer = 0;
+        this.inspectPitch = 0;
+        this.inspectYaw = 0;
+        this.inspectRoll = 0;
+      } else {
+        this.inspectTimer -= delta;
+        const progress = 1.0 - Math.max(0, this.inspectTimer / this.inspectDuration);
+
+        if (progress < 0.38) {
+          // Phase 1: Rotate right to inspect chamber & receiver markings
+          const t = progress / 0.38;
+          const ease = Math.sin(t * Math.PI * 0.5);
+          this.inspectPitch = -0.22 * ease;
+          this.inspectYaw = 0.65 * ease;
+          this.inspectRoll = -0.48 * ease;
+        } else if (progress < 0.72) {
+          // Phase 2: Roll left to inspect optic & left bolt catch
+          const t = (progress - 0.38) / 0.34;
+          const ease = 0.5 - 0.5 * Math.cos(t * Math.PI);
+          this.inspectPitch = -0.22 * (1 - ease) + 0.14 * ease;
+          this.inspectYaw = 0.65 * (1 - ease) - 0.35 * ease;
+          this.inspectRoll = -0.48 * (1 - ease) + 0.32 * ease;
+        } else {
+          // Phase 3: Settle back smoothly to hipfire
+          const t = (progress - 0.72) / 0.28;
+          const ease = 1 - Math.sin(t * Math.PI * 0.5);
+          this.inspectPitch = 0.14 * ease;
+          this.inspectYaw = -0.35 * ease;
+          this.inspectRoll = 0.32 * ease;
+        }
+      }
+    } else {
+      this.inspectPitch = 0;
+      this.inspectYaw = 0;
+      this.inspectRoll = 0;
+    }
   }
 
   applyToViewmodel(viewmodelGroup) {
     if (!viewmodelGroup) return;
 
     const bobFactor = this.isAds ? 0.2 : 1.0;
-    const sprintX = 0.03 * this.sprintTilt;
-    const sprintY = -0.06 * this.sprintTilt;
+    const sprintX = 0.03 * this.sprintTilt + 0.06 * this.tacSprintTilt;
+    const sprintY = -0.06 * this.sprintTilt - 0.08 * this.tacSprintTilt - 0.04 * this.slideTilt;
+    const sprintZ = -0.12 * this.tacSprintTilt;
 
     viewmodelGroup.position.set(
-      this.adsSpring.position.x + this.swaySpring.position.x + this.bobOffset.x * bobFactor + sprintX,
-      this.adsSpring.position.y + this.swaySpring.position.y + this.bobOffset.y * bobFactor + sprintY,
-      this.adsSpring.position.z + this.recoilSpring.position.z
+      this.adsSpring.position.x + this.swaySpring.position.x + this.bobOffset.x * bobFactor + sprintX + this.reloadOffset.x,
+      this.adsSpring.position.y + this.swaySpring.position.y + this.bobOffset.y * bobFactor + sprintY + this.reloadOffset.y,
+      this.adsSpring.position.z + this.recoilSpring.position.z + sprintZ + this.reloadOffset.z
     );
 
     // Pitch: -y_recoil * 3.0
     // Yaw: +x_sway * 2.0
-    const pitch = -this.recoilSpring.position.y * 3.0 + (this.bobOffset.y * 0.5 * bobFactor) - 0.12 * this.sprintTilt;
-    const yaw = this.swaySpring.position.x * 2.0 + (this.bobOffset.x * 0.5 * bobFactor) + 0.10 * this.sprintTilt;
-    const roll = this.reloadRoll - 0.25 * this.sprintTilt;
+    const pitch = -this.recoilSpring.position.y * 3.0 + (this.bobOffset.y * 0.5 * bobFactor) - 0.12 * this.sprintTilt - 0.68 * this.tacSprintTilt + 0.08 * this.slideTilt + this.reloadPitch + this.inspectPitch;
+    const yaw = this.swaySpring.position.x * 2.0 + (this.bobOffset.x * 0.5 * bobFactor) + 0.10 * this.sprintTilt + 0.26 * this.tacSprintTilt + this.inspectYaw;
+    const roll = this.reloadRoll - 0.25 * this.sprintTilt - 0.20 * this.tacSprintTilt - 0.28 * this.slideTilt + this.inspectRoll;
 
     viewmodelGroup.rotation.set(pitch, yaw, roll);
   }

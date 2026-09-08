@@ -120,3 +120,42 @@ Hör nicht auf, bis jeder Unteragent von der Qualität im Vergleich zum tatsäch
 4. **Night Vision Goggles (NVG) Phosphor Mode (`src/style.css`, `src/main.js`)**:
    - Green phosphor cathode overlay, CRT scanlines, contrast enhancement, dynamic fog tuning, toggled via `KeyN` or HUD touch button.
 
+---
+
+## 9. AAA Call of Duty Visual Critic Audit & Final Parity Implementation
+
+**Trigger**: `/boost continue`, `/boost resume continue`  
+**User Directives**:
+```text
+/boost continue
+/boost resume continue
+```
+
+**Forensic Audit Mandate**:
+Execute blind adversarial evaluation against Call of Duty Modern Warfare 3 (2023) and Black Ops 6 (2024), enforcing:
+1. **Dimension 1 (Weapon Mechanics & Kinetics)**:
+   - Rigged first-person operator arms with tactical fatigue sleeves, biometric smartwatch display, and tactical gloves attached across all 6 arsenal viewmodels.
+   - Procedural 3-phase weapon inspection curve (roll right chamber check, roll left optic/bolt catch inspect, settle) triggered via `KeyI` or mobile `INSP` button.
+   - Collimated reflex holographic sight dot and Picatinny tactical rails.
+2. **Dimension 2 (VFX & Combat Systems)**:
+   - Dynamic PointLight muzzle flash with multi-planar volumetric flame cross-quads.
+   - 3D luminous high-velocity bullet tracers with weapon-specific color coding.
+   - Surface-aware impact physics (metal ricochets, concrete gravel/dust, enemy plasma discharge).
+   - 36-instance tumbling brass shell casings with floor bounce physics.
+   - 64-instance persistent normal-oriented bullet hole decals on walls and terrain.
+   - Volumetric detonations with expanding shockwave ring, fiery core, and shrapnel.
+3. **Dimension 3 (PBR Environment & Atmosphere)**:
+   - 512x512 multi-octave procedural Sobel PBR textures with diffuse, normal, ambient occlusion, and reflective wet puddle specular masks (roughness ~0.05).
+   - Immersion-breaking `GridHelper` removed from arena floor.
+   - Suspended atmospheric dust motes and drifting embers across arena.
+4. **Dimension 4 (NEXUS PRIVE v6.0 Tactical HUD)**:
+   - Horizontal 360-degree tactical compass top ribbon tracking camera yaw (`000° N` to `359°`) with continuous tick tape.
+   - Stacked 5-item tactical killfeed (`#killfeed`) showing operator, weapon, target, and crit status.
+   - Dynamic bloom reticle expanding dynamically on movement and recoil impulses.
+   - Multi-tier hitmarkers (white body hit, gold headshot, red kill confirmation pop).
+   - Low-health pulsing red distress vignette and directional damage arcs.
+5. **Dimension 5 (Tactical Movement & Kinetics)**:
+   - Double-tap Tactical Sprint (17.5 m/s) with weapon angled vertically and dynamic FOV boost (+10°).
+   - Power slide and slide-cancel mechanics with ground friction deceleration (`KeyC`, `Ctrl`, or mobile `SLIDE` button).
+
+

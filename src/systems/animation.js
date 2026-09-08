@@ -189,9 +189,14 @@ export class WeaponAnimator {
     let velocityRatio = 1.0;
     let onFootstep = this.onFootstep;
 
+    let tacSprinting = false;
+    let sliding = false;
+
     if (arg2 && typeof arg2 === "object") {
       moving = !!arg2.moving;
       sprinting = !!arg2.sprinting;
+      tacSprinting = !!arg2.tacSprinting;
+      sliding = !!arg2.sliding;
       if (arg2.isAds !== undefined) isAds = !!arg2.isAds;
       if (arg2.hipPos) hipPos = arg2.hipPos;
       if (arg2.adsPos) adsPos = arg2.adsPos;
@@ -207,15 +212,26 @@ export class WeaponAnimator {
 
     this.isMoving = moving;
     this.isSprinting = sprinting;
+    this.isTacSprinting = tacSprinting;
+    this.isSliding = sliding;
     this.isAds = isAds;
 
     // Synchronize kinetics targets
     this.kinetics.setHipAndAds(hipPos, adsPos, this.isAds);
 
-    // 1. Update 2nd-order spring dampers
-    this.recoilSpring.update(dt);
-    this.swaySpring.update(dt);
-    this.adsSpring.update(dt);
+    // 1. Update 2nd-order spring dampers & kinetics
+    this.kinetics.update(dt, {
+      moving,
+      sprinting,
+      tacSprinting,
+      sliding,
+      isAds: this.isAds,
+      hipPos,
+      adsPos,
+      speed: arg2?.speed,
+      maxSpeed: arg2?.maxSpeed,
+      onFootstep,
+    });
 
     // 2. Fire state transient timer
     if (this.state === WEAPON_STATES.FIRE) {
@@ -264,13 +280,21 @@ export class WeaponAnimator {
           this.onReloadComplete = null;
         }
       }
-    } else if (this.state !== WEAPON_STATES.FIRE) {
-      if (this.isAds) {
-        this.state = WEAPON_STATES.ADS;
-      } else if (this.isSprinting && this.isMoving) {
-        this.state = WEAPON_STATES.SPRINT;
-      } else {
-        this.state = WEAPON_STATES.IDLE;
+      this.kinetics.reloadOffset.copy(reloadOffset);
+      this.kinetics.reloadPitch = reloadPitch;
+      this.kinetics.reloadRoll = reloadRotZ;
+    } else {
+      this.kinetics.reloadOffset.set(0, 0, 0);
+      this.kinetics.reloadPitch = 0;
+      this.kinetics.reloadRoll = 0;
+      if (this.state !== WEAPON_STATES.FIRE) {
+        if (this.isAds) {
+          this.state = WEAPON_STATES.ADS;
+        } else if (this.isSprinting && this.isMoving) {
+          this.state = WEAPON_STATES.SPRINT;
+        } else {
+          this.state = WEAPON_STATES.IDLE;
+        }
       }
     }
 
@@ -333,24 +357,7 @@ export class WeaponAnimator {
 
     // 7. Apply combined transformation to viewmodelRoot if present
     if (this.root) {
-      const bobFactor = this.isAds ? 0.2 : 1.0;
-
-      // Position: adsSpring + swaySpring + bobOffset + reloadOffset + sprintOffset
-      this.root.position.set(
-        this.adsSpring.position.x + this.swaySpring.position.x + this.bobOffset.x * bobFactor + reloadOffset.x + sprintOffset.x,
-        this.adsSpring.position.y + this.swaySpring.position.y + this.bobOffset.y * bobFactor + reloadOffset.y + sprintOffset.y,
-        this.adsSpring.position.z + this.recoilSpring.position.z + reloadOffset.z + sprintOffset.z
-      );
-
-      // Rotation:
-      // Pitch: -y_recoil * 3.0 + reloadPitch + sprintPitch + bobPitch
-      // Yaw: +x_sway * 2.0 + sprintYaw + bobYaw
-      // Roll: reloadRotZ + sprintRoll
-      const pitch = -this.recoilSpring.position.y * 3.0 + reloadPitch + sprintPitch + (this.bobOffset.y * 0.5 * bobFactor);
-      const yaw = this.swaySpring.position.x * 2.0 + sprintYaw + (this.bobOffset.x * 0.5 * bobFactor);
-      const roll = reloadRotZ + sprintRoll;
-
-      this.root.rotation.set(pitch, yaw, roll);
+      this.kinetics.applyToViewmodel(this.root);
     }
   }
 }

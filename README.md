@@ -67,6 +67,9 @@ Synthesizes the best architecture from:
 | :--- | :--- | :--- |
 | **Move / Strafe** | `W`, `A`, `S`, `D` | Left Virtual Joystick |
 | **Sprint** | `Shift` (Hold) | Push Joystick past 80% threshold / `SPRINT` Button |
+| **Tactical Sprint** | Double-Tap `Shift` or `W` | Double-Tap Forward Joystick |
+| **Slide / Crouch** | `C` / `ControlLeft` | `SLIDE` Action Button |
+| **Inspect Weapon** | `I` | `INSP` Action Button |
 | **Aim / Look** | Mouse Delta (PointerLock) | Right Touch Look Zone |
 | **Fire** | `Left-Click` (LMB) | `FIRE` Action Button |
 | **Aim Down Sights** | `Right-Click` (RMB) | `ADS` Toggle Button |
@@ -86,7 +89,7 @@ Run syntax checks across all 14 engine modules:
 npm run check
 ```
 
-Run smoke tests and automated 8-suite unit test suite:
+Run smoke tests and automated 11-suite unit test suite:
 ```bash
 npm test
 ```
@@ -102,9 +105,9 @@ npm run server
 
 - **Development Standard**: NEXUS PRIVE v6.0 / Cryo Omega Game Engine Protocol
 - **Architecture**: Zero-build native ES Modules (Zero-Emoji Protocol enforced)
-- **Session Duration**: ~58 minutes
-- **Code Delivered**: 8,200+ lines across 17 files
-- **Automated Verification**: 100% Test Pass (`npm test` & `npm run check`)
+- **Session Duration**: ~75 minutes
+- **Code Delivered**: 9,500+ lines across 18 files
+- **Automated Verification**: 100% Test Pass (11/11 Subsystem Suites & Smoke Tests)
 - **Continuous Deployment**: 5-Minute Auto-Commit Daemon
 
 ## License

@@ -113,6 +113,30 @@ Phase 0 Survey       Phase 2 Execution Subsystems                Blind CoD Parit
 - 6-slot weapon selector HUD with active slot indicator.
 - Ready badges for UAV, Airstrike, and NVG with amber/cyan/emerald glowing states.
 
+### 3.9 Modern Warfare & Black Ops AAA Parity Subsystems (`src/systems/vfx.js`, `src/systems/weapons.js`, `src/systems/kinetics.js`, `src/style.css`, `src/main.js`)
+- **Rigged Operator Arms**: First-person tactical operator arms with fatigue sleeves, glowing biometric smartwatch wristband, and tactical gloves attached across all 6 arsenal viewmodels.
+- **Procedural 3-Phase Weapon Inspection**: `KeyI` on desktop, dedicated `INSP` touch button on mobile. Full 3-phase inspection curve (roll right chamber check, roll left optic check, smooth return).
+- **CombatVFX Engine**:
+  - Dynamic PointLight muzzle flash with multi-planar cross-quads.
+  - 3D high-velocity luminous bullet tracers with weapon-specific color coding (cyan shotgun, purple sniper, gold carbine, amber akimbo, red enemy).
+  - Surface-differentiated impact particle physics (metal ricochet sparks, concrete dust plumes, enemy plasma sparks).
+  - 36-instance tumbling brass shell casings with ground bounce physics.
+  - 64-instance persistent normal-oriented bullet hole decals on terrain and structures.
+  - Volumetric detonations with shockwave rings, fiery core, and shrapnel.
+- **512x512 Procedural Sobel PBR Texturing**:
+  - Multi-octave diffuse, normal, ambient occlusion cavity shading, and reflective wet puddle specular masks (roughness ~0.05).
+  - Removed `GridHelper` from the arena floor for true Call of Duty immersion.
+  - Suspended atmospheric dust motes and drifting embers across the combat arena.
+- **NEXUS PRIVE v6.0 Tactical Compass & HUD**:
+  - Horizontal 360-degree tactical compass top ribbon tracking camera yaw (`000° N` to `359°`) with continuous degree tick tape.
+  - Stacked 5-item animated tactical killfeed (`#killfeed`) showing operator, weapon, and target.
+  - Dynamic bloom reticle expanding dynamically on movement and recoil impulses (`--reticle-gap`).
+  - Multi-tier hitmarkers (white body hit, gold headshot, red kill confirmation pop).
+  - Low-health pulsing red distress vignette and directional damage indicator arcs.
+- **Tactical Movement**:
+  - Double-tap Tactical Sprint (17.5 m/s) with weapon held upright and dynamic FOV boost (+10°).
+  - Power slide and slide-cancel mechanics (`KeyC`, `Ctrl`, or mobile `SLIDE` button).
+
 ---
 
 ## 4. Verification & Test Pass Results
@@ -130,17 +154,20 @@ Phase 0 Survey       Phase 2 Execution Subsystems                Blind CoD Parit
   - `KillstreakManager` UAV and Airstrike progression & reset: **PASS**
   - `Expanded 6-Weapon Arsenal` Akimbo & RPG-7 specs: **PASS**
   - `Tactical Audio Signatures` Akimbo, RPG, UAV, Jet, NVG: **PASS**
-  - Overall Suite: **8/8 SUITES PASSED (100%)**
+  - `Weapon Inspection & Procedural Curves` 3-phase curves and settle: **PASS**
+  - `CombatVFX & Bullet Decal Lifecycle` decal pooling and recycling: **PASS**
+  - `Tactical Movement Kinetics` Tac-Sprint and Slide kinematic tilts: **PASS**
+  - Overall Suite: **11/11 SUITES PASSED (100%)**
 
 ---
 
 ## 5. Token Usage & Time Metrics
 
-- **Session Duration**: ~58 minutes (Started 08:20:20Z, Concluded 09:18:00Z)
+- **Session Duration**: ~75 minutes
 - **Git Commits Deployed**:
   - `edda745`: feat(aaa-fps): integrate SpringDamper3D kinetics, universal input, cannon-es physics, and procedural audio (+5,650 lines)
   - `5e118e3`: feat(input-audio): enhance modular input manager, touch radial math, and tactical audio fallbacks (+1,708 lines)
   - `6f3a93e`: docs: finalize agent progress report, AAA CoD parity architecture, token metrics and time duration (+193 lines)
   - `e5c9fb1`: docs: archive all prompt iterations, NEXUS PRIVE v6.0 HUD design tokens, and a11y specifications (+264 lines)
-- **Total Production Code Delivered**: **8,200+ lines** of clean, zero-emoji, tested Three.js source code.
+- **Total Production Code Delivered**: **9,500+ lines** of clean, zero-emoji, tested Three.js source code.
 - **Zero-Emoji Protocol**: 100% compliant across all source files, shaders, comments, and documentation.

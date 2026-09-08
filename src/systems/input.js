@@ -124,6 +124,10 @@ export class TouchControls {
     this.ads = false;
     this.jump = false;
     this.reload = false;
+    this.inspect = false;
+    this.slide = false;
+    this.joyTacSprint = false;
+    this.lastJoySprintTime = 0;
     this.btnSprintToggled = false;
     this.weaponSlot = 0;
     this.requestedSlot = null;
@@ -148,6 +152,8 @@ export class TouchControls {
       btnReload: null,
       btnSprint: null,
       btnSwap: null,
+      btnInspect: null,
+      btnSlide: null,
     };
 
     this.listeners = [];
@@ -228,6 +234,8 @@ export class TouchControls {
     this.elements.btnReload = document.getElementById("touch-btn-reload");
     this.elements.btnSprint = document.getElementById("touch-btn-sprint");
     this.elements.btnSwap = document.getElementById("touch-btn-swap");
+    this.elements.btnInspect = document.getElementById("touch-btn-inspect");
+    this.elements.btnSlide = document.getElementById("touch-btn-slide");
   }
 
   #applyNonPassivePrevention() {
@@ -252,6 +260,8 @@ export class TouchControls {
       this.elements.btnReload,
       this.elements.btnSprint,
       this.elements.btnSwap,
+      this.elements.btnInspect,
+      this.elements.btnSlide,
     ];
 
     for (const el of targetElements) {
@@ -345,7 +355,17 @@ export class TouchControls {
           }
 
           // Sprint threshold 0.85 (engaged when forward stick displacement exceeds 85%)
+          const prevJoySprint = this.joySprint;
           this.joySprint = this.move.y >= this.options.sprintThreshold;
+          if (this.joySprint && !prevJoySprint) {
+            const now = performance.now();
+            if (now - this.lastJoySprintTime < 320) {
+              this.joyTacSprint = true;
+            }
+            this.lastJoySprintTime = now;
+          } else if (!this.joySprint) {
+            this.joyTacSprint = false;
+          }
 
           if (typeof this.options.onMove === "function") {
             this.options.onMove(this.move.x, this.move.y);
@@ -515,6 +535,21 @@ export class TouchControls {
       },
     });
 
+    this.#bindButton(this.elements.btnInspect, {
+      onDown: () => {
+        this.inspect = true;
+      },
+    });
+
+    this.#bindButton(this.elements.btnSlide, {
+      onDown: () => {
+        this.slide = true;
+      },
+      onUp: () => {
+        this.slide = false;
+      },
+    });
+
     // Prevent context menu gesture
     this.#addListener(window, "contextmenu", (e) => e.preventDefault(), { passive: false });
   }
@@ -641,6 +676,9 @@ export class TouchControls {
     this.adsMode = "off";
     this.jump = false;
     this.reload = false;
+    this.inspect = false;
+    this.slide = false;
+    this.joyTacSprint = false;
     this.btnSprintToggled = false;
 
     if (this.elements.joystickThumb) {
@@ -649,6 +687,8 @@ export class TouchControls {
     if (this.elements.btnFire) this.elements.btnFire.classList.remove("active");
     if (this.elements.btnAds) this.elements.btnAds.classList.remove("active", "toggled");
     if (this.elements.btnSprint) this.elements.btnSprint.classList.remove("active");
+    if (this.elements.btnInspect) this.elements.btnInspect.classList.remove("active");
+    if (this.elements.btnSlide) this.elements.btnSlide.classList.remove("active");
   }
 
   update(_delta) {
@@ -662,11 +702,17 @@ export class TouchControls {
     const reload = this.reload;
     this.reload = false;
 
+    const inspect = this.inspect;
+    this.inspect = false;
+
+    const slide = this.slide;
+
     const look = { dx: this.lookDelta.dx, dy: this.lookDelta.dy };
     this.lookDelta.dx = 0;
     this.lookDelta.dy = 0;
 
     const sprint = this.joySprint || this.btnSprintToggled;
+    const tacSprint = this.joyTacSprint && sprint;
 
     return {
       move: { x: this.move.x, y: this.move.y },
@@ -676,6 +722,9 @@ export class TouchControls {
       jump,
       reload,
       sprint,
+      tacSprint,
+      slide,
+      inspect,
       weaponSlot: this.weaponSlot,
     };
   }
@@ -718,6 +767,11 @@ export class DesktopControls {
     this.killstreakUav = false;
     this.killstreakAirstrike = false;
     this.toggleNightVision = false;
+    this.inspect = false;
+    this.slide = false;
+    this.tacSprint = false;
+    this.lastShiftPressTime = 0;
+    this.lastWPressTime = 0;
 
     this.lookDelta = { dx: 0, dy: 0 };
     this.rawMouseDelta = { dx: 0, dy: 0 };
@@ -788,10 +842,38 @@ export class DesktopControls {
       if (e.code === "KeyN") {
         this.toggleNightVision = true;
       }
+      if (e.code === "KeyI") {
+        this.inspect = true;
+      }
+      if (e.code === "KeyC" || e.code === "ControlLeft") {
+        this.slide = true;
+      }
+      if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
+        const now = performance.now();
+        if (now - this.lastShiftPressTime < 320) {
+          this.tacSprint = true;
+        }
+        this.lastShiftPressTime = now;
+      }
+      if (e.code === "KeyW") {
+        const now = performance.now();
+        if (now - this.lastWPressTime < 320) {
+          this.tacSprint = true;
+        }
+        this.lastWPressTime = now;
+      }
     };
 
     const onKeyUp = (e) => {
       this.keys.delete(e.code);
+      if (e.code === "KeyC" || e.code === "ControlLeft") {
+        this.slide = false;
+      }
+      if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyW") {
+        if (!this.keys.has("ShiftLeft") && !this.keys.has("ShiftRight") && !this.keys.has("KeyW")) {
+          this.tacSprint = false;
+        }
+      }
     };
 
     // Mouse buttons: LMB (fire), RMB (ADS toggle)
@@ -906,12 +988,18 @@ export class DesktopControls {
     }
 
     const sprint = (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight")) && len > 0.01;
+    const tacSprint = this.tacSprint && sprint;
 
     const jump = this.jump;
     this.jump = false;
 
     const reload = this.reload;
     this.reload = false;
+
+    const inspect = this.inspect;
+    this.inspect = false;
+
+    const slide = this.slide || this.keys.has("KeyC") || this.keys.has("ControlLeft");
 
     const look = { dx: this.lookDelta.dx, dy: this.lookDelta.dy };
     this.lookDelta.dx = 0;
@@ -925,6 +1013,9 @@ export class DesktopControls {
       jump,
       reload,
       sprint,
+      tacSprint,
+      slide,
+      inspect,
       weaponSlot: this.weaponSlot,
     };
   }
@@ -1040,6 +1131,9 @@ export class InputManager {
       const hasDesktopMove = desktopState.move.x !== 0 || desktopState.move.y !== 0;
       const move = hasDesktopMove ? desktopState.move : touchState.move;
       const sprint = touchState.sprint || desktopState.sprint;
+      const tacSprint = touchState.tacSprint || desktopState.tacSprint;
+      const slide = touchState.slide || desktopState.slide;
+      const inspect = touchState.inspect || desktopState.inspect;
       const fire = touchState.fire || desktopState.fire;
       const ads = touchState.ads || desktopState.ads;
       const jump = touchState.jump || desktopState.jump;
@@ -1050,7 +1144,7 @@ export class InputManager {
       };
       const weaponSlot = touchState.weaponSlot || desktopState.weaponSlot;
 
-      return { move, look, fire, ads, jump, reload, sprint, weaponSlot };
+      return { move, look, fire, ads, jump, reload, sprint, tacSprint, slide, inspect, weaponSlot };
     }
 
     return desktopState;
@@ -1139,6 +1233,9 @@ export class InputManager {
       moveDir: wish,
       moving,
       sprinting: state.sprint,
+      tacSprinting: state.tacSprint,
+      sliding: state.slide,
+      inspect: state.inspect,
       jump: state.jump,
       fire: state.fire,
       ads: state.ads,

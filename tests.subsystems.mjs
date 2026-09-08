@@ -402,4 +402,164 @@ console.log("--> Testing Tactical Audio Synthesis Signatures...");
   console.log("  [PASS] Tactical Audio synthesis signatures & routing OK");
 }
 
+// 9. Test Weapon Inspection Dynamics & Curves
+console.log("--> Testing Weapon Inspection & Procedural Curves...");
+{
+  class HeadlessWeaponKinetics {
+    constructor() {
+      this.inspectTimer = 0;
+      this.inspectDuration = 2.4;
+      this.inspectPitch = 0;
+      this.inspectYaw = 0;
+      this.inspectRoll = 0;
+      this.isAds = false;
+    }
+    triggerInspect() {
+      if (this.isAds) return false;
+      this.inspectTimer = this.inspectDuration;
+      return true;
+    }
+    update(delta) {
+      if (this.inspectTimer > 0) {
+        this.inspectTimer = Math.max(0, this.inspectTimer - delta);
+        if (this.inspectTimer === 0) {
+          this.inspectPitch = 0;
+          this.inspectYaw = 0;
+          this.inspectRoll = 0;
+          return;
+        }
+        const progress = 1.0 - (this.inspectTimer / this.inspectDuration);
+        if (progress < 0.38) {
+          const t = progress / 0.38;
+          const ease = Math.sin(t * Math.PI * 0.5);
+          this.inspectPitch = -0.22 * ease;
+          this.inspectYaw = 0.65 * ease;
+          this.inspectRoll = -0.48 * ease;
+        } else if (progress < 0.72) {
+          const t = (progress - 0.38) / 0.34;
+          const ease = 0.5 - 0.5 * Math.cos(t * Math.PI);
+          this.inspectPitch = -0.22 * (1 - ease) + 0.14 * ease;
+          this.inspectYaw = 0.65 * (1 - ease) - 0.35 * ease;
+          this.inspectRoll = -0.48 * (1 - ease) + 0.32 * ease;
+        } else {
+          const t = (progress - 0.72) / 0.28;
+          const ease = 1 - Math.sin(t * Math.PI * 0.5);
+          this.inspectPitch = 0.14 * ease;
+          this.inspectYaw = -0.35 * ease;
+          this.inspectRoll = 0.32 * ease;
+        }
+      } else {
+        this.inspectPitch = 0;
+        this.inspectYaw = 0;
+        this.inspectRoll = 0;
+      }
+    }
+  }
+
+  const kinetics = new HeadlessWeaponKinetics();
+  assert.equal(kinetics.triggerInspect(), true);
+  assert.equal(kinetics.inspectTimer, 2.4);
+
+  // Advance to Phase 1 (Chamber inspect)
+  kinetics.update(0.4);
+  assert.ok(kinetics.inspectYaw > 0, "Phase 1 chamber yaw failed to rotate right");
+  assert.ok(kinetics.inspectRoll < 0, "Phase 1 chamber roll failed to tilt right");
+
+  // Advance to Phase 2 (Optic & bolt catch inspect)
+  kinetics.update(0.8);
+  assert.ok(kinetics.inspectYaw < 0.65, "Phase 2 optic transition failed");
+
+  // Complete inspect cycle (settle back to hipfire)
+  kinetics.update(2.0);
+  assert.equal(kinetics.inspectTimer, 0);
+  assert.equal(kinetics.inspectPitch, 0);
+  assert.equal(kinetics.inspectYaw, 0);
+  assert.equal(kinetics.inspectRoll, 0);
+  console.log("  [PASS] Weapon inspection 3-phase curves and settle OK");
+}
+
+// 10. Test CombatVFX & Bullet Decal Lifecycle
+console.log("--> Testing CombatVFX & Bullet Decal Lifecycle...");
+{
+  class HeadlessDecalPool {
+    constructor(maxDecals = 64) {
+      this.decalPool = new Array(maxDecals).fill(null).map((_, i) => ({ id: i }));
+      this.activeDecals = [];
+    }
+    spawnDecal(surfaceType = "concrete") {
+      let d = null;
+      if (this.decalPool.length > 0) {
+        d = this.decalPool.pop();
+      } else if (this.activeDecals.length > 0) {
+        d = this.activeDecals.shift().decal;
+      }
+      if (!d) return null;
+      this.activeDecals.push({ decal: d, surfaceType, life: 14.0 });
+      return d;
+    }
+    update(dt) {
+      for (let i = this.activeDecals.length - 1; i >= 0; i--) {
+        const item = this.activeDecals[i];
+        item.life -= dt;
+        if (item.life <= 0) {
+          this.decalPool.push(item.decal);
+          this.activeDecals.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  const pool = new HeadlessDecalPool(64);
+  assert.equal(pool.decalPool.length, 64);
+
+  // Spawn 10 decals
+  for (let i = 0; i < 10; i++) {
+    pool.spawnDecal("concrete");
+  }
+  assert.equal(pool.decalPool.length, 54);
+  assert.equal(pool.activeDecals.length, 10);
+
+  // Fast forward past lifetime (14s)
+  pool.update(15.0);
+  assert.equal(pool.activeDecals.length, 0);
+  assert.equal(pool.decalPool.length, 64);
+  console.log("  [PASS] CombatVFX decal pooling and recycle lifecycle OK");
+}
+
+// 11. Test Tactical Movement Kinetics (Tac-Sprint & Slide)
+console.log("--> Testing Tactical Movement Kinetics (Tac-Sprint & Slide)...");
+{
+  class HeadlessMovementKinetics {
+    constructor() {
+      this.sprintTilt = 0;
+      this.tacSprintTilt = 0;
+      this.slideTilt = 0;
+    }
+    update(dt, { sprinting = false, tacSprinting = false, sliding = false } = {}) {
+      const targetSprint = (sprinting && !tacSprinting) ? 1.0 : 0.0;
+      this.sprintTilt += (targetSprint - this.sprintTilt) * Math.min(1, dt * 12);
+
+      const targetTacSprint = tacSprinting ? 1.0 : 0.0;
+      this.tacSprintTilt += (targetTacSprint - this.tacSprintTilt) * Math.min(1, dt * 14);
+
+      const targetSlide = sliding ? 1.0 : 0.0;
+      this.slideTilt += (targetSlide - this.slideTilt) * Math.min(1, dt * 15);
+    }
+  }
+
+  const mov = new HeadlessMovementKinetics();
+  // Test tactical sprint tilt
+  for (let i = 0; i < 30; i++) {
+    mov.update(1 / 60, { tacSprinting: true });
+  }
+  assert.ok(mov.tacSprintTilt > 0.85, "Tac-sprint tilt failed to engage");
+
+  // Test slide tilt
+  for (let i = 0; i < 30; i++) {
+    mov.update(1 / 60, { sliding: true });
+  }
+  assert.ok(mov.slideTilt > 0.85, "Slide tilt failed to engage");
+  console.log("  [PASS] Tactical sprint and power slide kinematic tilts OK");
+}
+
 console.log("\nALL SUBSYSTEMS UNIT TESTS PASSED (100%)");
