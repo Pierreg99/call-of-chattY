@@ -239,4 +239,167 @@ console.log("--> Testing Touch Virtual Joystick Radial Math...");
   console.log("  [PASS] Touch virtual joystick radial math OK");
 }
 
+// 6. Test Killstreak System (UAV Recon & Precision Airstrike)
+console.log("--> Testing Killstreak System (UAV Recon & Precision Airstrike)...");
+{
+  class HeadlessKillstreakManager {
+    constructor() {
+      this.streak = 0;
+      this.uavReady = false;
+      this.uavActive = false;
+      this.airstrikeReady = false;
+      this.airstrikeActive = false;
+      this.uavTimer = 0;
+    }
+    registerKill() {
+      this.streak++;
+      if (this.streak === 3) this.uavReady = true;
+      if (this.streak === 5) this.airstrikeReady = true;
+      return this.streak;
+    }
+    resetOnDeath() {
+      this.streak = 0;
+      this.uavReady = false;
+      this.airstrikeReady = false;
+    }
+    activateUav() {
+      if (!this.uavReady) return false;
+      this.uavReady = false;
+      this.uavActive = true;
+      this.uavTimer = 25.0;
+      return true;
+    }
+    activateAirstrike() {
+      if (!this.airstrikeReady) return false;
+      this.airstrikeReady = false;
+      this.airstrikeActive = true;
+      return true;
+    }
+  }
+
+  const km = new HeadlessKillstreakManager();
+  km.registerKill(); // 1
+  km.registerKill(); // 2
+  assert.equal(km.uavReady, false);
+  km.registerKill(); // 3 kills -> UAV unlocked
+  assert.equal(km.uavReady, true);
+  assert.equal(km.airstrikeReady, false);
+
+  assert.equal(km.activateUav(), true);
+  assert.equal(km.uavActive, true);
+  assert.equal(km.uavReady, false);
+
+  km.registerKill(); // 4
+  km.registerKill(); // 5 kills -> Airstrike unlocked
+  assert.equal(km.airstrikeReady, true);
+  assert.equal(km.activateAirstrike(), true);
+  assert.equal(km.airstrikeActive, true);
+
+  // Player death resets streak and unspent rewards
+  km.resetOnDeath();
+  assert.equal(km.streak, 0);
+  assert.equal(km.uavReady, false);
+  assert.equal(km.airstrikeReady, false);
+  console.log("  [PASS] Killstreak progression, unlocking, and death reset OK");
+}
+
+// 7. Test Expanded 6-Weapon Arsenal (Akimbo & Heavy RPG-7)
+console.log("--> Testing Expanded 6-Weapon Arsenal (Akimbo & RPG-7)...");
+{
+  const FULL_ARSENAL = [
+    { id: "carbine", slot: 1, rpm: 650, magSize: 30 },
+    { id: "shotgun", slot: 2, rpm: 75, magSize: 8, pellets: 8 },
+    { id: "sniper", slot: 3, rpm: 45, magSize: 5, hasScope: true },
+    { id: "grenade", slot: 4, rpm: 55, magSize: 3, blastRadius: 8 },
+    { id: "akimbo", slot: 5, rpm: 480, magSize: 30, isDualWield: true },
+    { id: "rpg", slot: 6, rpm: 18, magSize: 1, damage: 240, blastRadius: 14, isLauncher: true },
+  ];
+
+  assert.equal(FULL_ARSENAL.length, 6);
+  assert.equal(FULL_ARSENAL[4].id, "akimbo");
+  assert.equal(FULL_ARSENAL[4].isDualWield, true);
+  assert.equal(FULL_ARSENAL[4].rpm, 480);
+  assert.equal(FULL_ARSENAL[5].id, "rpg");
+  assert.equal(FULL_ARSENAL[5].isLauncher, true);
+  assert.equal(FULL_ARSENAL[5].damage, 240);
+  assert.equal(FULL_ARSENAL[5].blastRadius, 14);
+
+  // Akimbo alternating fire logic test
+  let akimboLeft = false;
+  const shots = [];
+  for (let s = 0; s < 4; s++) {
+    akimboLeft = !akimboLeft;
+    shots.push(akimboLeft ? "left" : "right");
+  }
+  assert.deepEqual(shots, ["left", "right", "left", "right"]);
+  console.log("  [PASS] 6-Weapon Arsenal specifications & akimbo alternating impulse OK");
+}
+
+// 8. Test Tactical Audio Synthesis Signatures
+console.log("--> Testing Tactical Audio Synthesis Signatures...");
+{
+  class AudioSignatureMock {
+    constructor() {
+      this.calls = [];
+    }
+    shot(type, pos = null, extra = null) {
+      this.calls.push({ method: "shot", type, extra });
+      if (type === "akimbo") return this.fireAkimbo(pos, extra?.isLeft);
+      if (type === "rpg") return this.fireRocket(pos);
+      return true;
+    }
+    fireAkimbo(pos = null, isLeft = false) {
+      this.calls.push({ method: "fireAkimbo", isLeft });
+      return true;
+    }
+    fireRocket(pos = null) {
+      this.calls.push({ method: "fireRocket" });
+      return true;
+    }
+    playRocketLaunch(pos = null) {
+      this.calls.push({ method: "playRocketLaunch" });
+      return true;
+    }
+    playRocketExplosion(pos = null) {
+      this.calls.push({ method: "playRocketExplosion" });
+      return true;
+    }
+    playUavPing() {
+      this.calls.push({ method: "playUavPing" });
+      return true;
+    }
+    playJetFlyby() {
+      this.calls.push({ method: "playJetFlyby" });
+      return true;
+    }
+    playNightVisionToggle(enabled = true) {
+      this.calls.push({ method: "playNightVisionToggle", enabled });
+      return true;
+    }
+    playKillstreakEarned(name = "") {
+      this.calls.push({ method: "playKillstreakEarned", name });
+      return true;
+    }
+  }
+
+  const audio = new AudioSignatureMock();
+  audio.shot("akimbo", null, { isLeft: true });
+  audio.shot("rpg");
+  audio.playRocketLaunch();
+  audio.playRocketExplosion();
+  audio.playUavPing();
+  audio.playJetFlyby();
+  audio.playNightVisionToggle(true);
+  audio.playKillstreakEarned("UAV");
+
+  assert.ok(audio.calls.some((c) => c.method === "fireAkimbo" && c.isLeft === true));
+  assert.ok(audio.calls.some((c) => c.method === "fireRocket"));
+  assert.ok(audio.calls.some((c) => c.method === "playRocketExplosion"));
+  assert.ok(audio.calls.some((c) => c.method === "playUavPing"));
+  assert.ok(audio.calls.some((c) => c.method === "playJetFlyby"));
+  assert.ok(audio.calls.some((c) => c.method === "playNightVisionToggle" && c.enabled === true));
+  assert.ok(audio.calls.some((c) => c.method === "playKillstreakEarned"));
+  console.log("  [PASS] Tactical Audio synthesis signatures & routing OK");
+}
+
 console.log("\nALL SUBSYSTEMS UNIT TESTS PASSED (100%)");

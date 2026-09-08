@@ -16,6 +16,7 @@ import { SpringDamper3D, WeaponKinetics } from "./systems/kinetics.js";
 import { WeaponManager, buildWeaponMesh, WEAPON_CONFIGS } from "./systems/weapons.js";
 import { InputManager } from "./systems/input.js";
 import { ClientPrediction } from "./net/netcode.js";
+import { KillstreakManager, KILLSTREAK_TYPES } from "./systems/killstreaks.js";
 
 const CFG = Object.freeze({
   world: 180,
@@ -40,6 +41,7 @@ const state = {
   elapsed: 0,
   damageFlash: 0,
   hitMarkerT: 0,
+  nvg: false,
 };
 
 const clock = new THREE.Clock();
@@ -242,15 +244,21 @@ const mats = {
 document.querySelector("#app").innerHTML = `
 <div id="hud">
   <div id="topbar">
+    <div id="radar-panel">
+      <div id="radar-sweep"></div>
+      <div id="radar-center"></div>
+      <div id="radar-blips"></div>
+    </div>
     <div class="panel"><div class="kicker">OPERATION</div><div class="value">COLD FRONT</div></div>
     <div class="panel"><div class="kicker">WAVE / ENEMIES</div><div class="value" id="waveInfo">WAVE 1 (16)</div></div>
-    <div class="panel"><div class="kicker">SCORE</div><div class="value" id="score">000000</div></div>
+    <div class="panel"><div class="kicker">SCORE / STREAK</div><div class="value"><span id="score">000000</span> <span style="font-size:14px;color:#f59e0b" id="streakDisplay">x0</span></div></div>
     <div class="panel"><div class="kicker">TELEMETRY</div><div class="value" id="perf">— FPS</div></div>
   </div>
   <div id="reticle"></div>
   <div id="hitmarker"></div>
   <div id="sniper-scope"></div>
-  <div id="crosshairHint">LMB / TOUCH FIRE · RMB / ADS · SHIFT SPRINT · SPACE JUMP · 1-4 SWAP</div>
+  <div id="nvg-overlay"></div>
+  <div id="crosshairHint">LMB / TOUCH FIRE · RMB / ADS · 1-6 WEAPONS · 7/U UAV · 8/J STRIKE · N NVG</div>
   <div id="vitals" class="panel">
     <div class="kicker">SYSTEMS / HEALTH</div>
     <div class="value"><span id="health">100</span>%</div>
@@ -265,6 +273,13 @@ document.querySelector("#app").innerHTML = `
       <div class="slot" id="slot-1">2 SHOTGUN</div>
       <div class="slot" id="slot-2">3 SNIPER</div>
       <div class="slot" id="slot-3">4 FRAG</div>
+      <div class="slot" id="slot-4">5 AKIMBO</div>
+      <div class="slot" id="slot-5">6 RPG-7</div>
+    </div>
+    <div id="killstreaks-hud">
+      <div class="streak-badge" id="streak-uav">UAV [3]</div>
+      <div class="streak-badge" id="streak-airstrike">STRIKE [5]</div>
+      <div class="nvg-badge" id="badge-nvg">NVG [N]</div>
     </div>
   </div>
   <div id="damage"></div>
@@ -280,9 +295,11 @@ document.querySelector("#app").innerHTML = `
     <div class="touch-btn-cluster">
       <button class="touch-action-btn" id="touch-btn-jump">JUMP</button>
       <button class="touch-action-btn" id="touch-btn-ads">ADS</button>
-      <button class="touch-action-btn" id="touch-btn-reload">RELOAD</button>
+      <button class="touch-action-btn btn-tactical" id="touch-btn-uav">UAV</button>
       <button class="touch-action-btn" id="touch-btn-sprint">SPRINT</button>
+      <button class="touch-action-btn" id="touch-btn-reload">RELOAD</button>
       <button class="touch-action-btn" id="touch-btn-swap">SWAP</button>
+      <button class="touch-action-btn btn-nvg" id="touch-btn-nvg">NVG</button>
       <button class="touch-action-btn btn-fire" id="touch-btn-fire">FIRE</button>
     </div>
   </div>
@@ -397,6 +414,42 @@ const weaponAnimator = new WeaponAnimator(weaponManager.viewmodelRoot, kinetics)
 const tracerPool = new ProjectileTracer(scene);
 const combatVFX = new CombatVFX(scene, camera);
 
+const killstreakManager = new KillstreakManager({
+  audio,
+  kinetics,
+  onToast: (msg) => toast(msg),
+  onStreakEarned: (type, streak) => {
+    state.score += 250;
+  },
+  onAirstrikeImpact: (pos, radius) => {
+    spawnParticles(pos, 0xff4422, 50);
+    spawnParticles(pos, 0xffcc33, 35);
+    spawnParticles(pos, 0x555555, 30);
+  },
+});
+
+function toggleNightVision(force = null) {
+  state.nvg = force !== null ? force : !state.nvg;
+  audio.playNightVisionToggle(state.nvg);
+
+  const overlay = $("nvg-overlay");
+  const canvas = renderer.domElement;
+
+  if (state.nvg) {
+    overlay?.classList.add("active");
+    canvas?.classList.add("nvg-active");
+    scene.fog.color.setHex(0x041810);
+    scene.background.setHex(0x020d09);
+    toast("NIGHT VISION OPTICS ENGAGED");
+  } else {
+    overlay?.classList.remove("active");
+    canvas?.classList.remove("nvg-active");
+    scene.fog.color.setHex(0x091414);
+    scene.background.setHex(0x060c0d);
+    toast("NIGHT VISION OPTICS DISENGAGED");
+  }
+}
+
 const player = new CapsuleController(camera, {
   radius: 0.42,
   height: 1.8,
@@ -461,6 +514,7 @@ class RoboticCombatant {
       this.alive = false;
       this.group.visible = false;
       state.streak++;
+      killstreakManager.registerKill();
       const gained = scoreMultiplier({ kill: true, streak: state.streak });
       state.score += gained;
       audio.kill();
@@ -519,6 +573,8 @@ const director = new CombatDirector({
       audio.damage();
       kinetics.addTrauma(0.24);
       if (state.health <= 0) {
+        state.streak = 0;
+        killstreakManager.resetOnDeath();
         audio.death();
         toast("OPERATOR DOWN");
       }
@@ -612,6 +668,81 @@ function updateGrenades(dt) {
   }
 }
 
+const activeRockets = [];
+function spawnRocket(pos, velocity, damage, radius) {
+  const rocketGroup = new THREE.Group();
+  const warhead = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 8), mats.red);
+  warhead.rotation.x = -Math.PI / 2;
+  rocketGroup.add(warhead);
+  const bodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.35, 8), mats.dark);
+  bodyMesh.rotation.x = Math.PI / 2;
+  bodyMesh.position.z = 0.22;
+  rocketGroup.add(bodyMesh);
+
+  rocketGroup.position.copy(pos);
+  rocketGroup.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, -1),
+    velocity.clone().normalize()
+  );
+  scene.add(rocketGroup);
+
+  const body = physicsWorld.spawnPhysicsGrenade(pos, velocity, 0.08);
+  body.linearDamping = 0.0;
+  physicsWorld.meshes.set(body, rocketGroup);
+
+  activeRockets.push({
+    mesh: rocketGroup,
+    body,
+    timer: 3.5,
+    damage,
+    radius,
+  });
+  audio.playRocketLaunch(pos);
+}
+
+function updateRockets(dt) {
+  for (let i = activeRockets.length - 1; i >= 0; i--) {
+    const r = activeRockets[i];
+    r.timer -= dt;
+
+    const currentPos = new THREE.Vector3(r.body.position.x, r.body.position.y, r.body.position.z);
+    if (Math.random() < 0.6) {
+      spawnParticles(currentPos, 0x999999, 2);
+      spawnParticles(currentPos, 0xffaa33, 1);
+    }
+
+    let collided = false;
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      if (currentPos.distanceTo(e.group.position) < 1.4) {
+        collided = true;
+        break;
+      }
+    }
+
+    if (currentPos.y <= 0.2 || r.timer <= 0 || collided) {
+      audio.playRocketExplosion(currentPos);
+      kinetics.addTrauma(0.85);
+      spawnParticles(currentPos, 0xff4422, 60);
+      spawnParticles(currentPos, 0xffcc33, 40);
+      spawnParticles(currentPos, 0x555555, 30);
+
+      enemies.forEach((e) => {
+        if (!e.alive) return;
+        const d = currentPos.distanceTo(e.group.position);
+        if (d <= r.radius) {
+          const falloff = 1 - d / r.radius;
+          e.takeDamage(Math.round(r.damage * falloff), currentPos);
+        }
+      });
+
+      physicsWorld.removeBody(r.body);
+      scene.remove(r.mesh);
+      activeRockets.splice(i, 1);
+    }
+  }
+}
+
 // 9. Combat Execution
 function handleRaycastShot(raycaster, damage, pelletIndex) {
   state.shots++;
@@ -661,11 +792,74 @@ function updateUI(dt) {
   $("damage").style.opacity = state.damageFlash.toFixed(2);
   $("waveInfo").textContent = `WAVE ${state.wave} (${enemies.filter((e) => e.alive).length})`;
 
-  // Update weapon slot indicator
-  for (let s = 0; s < 4; s++) {
+  // Update weapon slot indicator (0 to 5)
+  for (let s = 0; s < 6; s++) {
     const slotEl = $(`slot-${s}`);
     if (slotEl) {
       slotEl.className = s === weaponManager.currentIndex ? "slot active" : "slot";
+    }
+  }
+
+  // Update streak counter in topbar
+  const streakEl = $("streakDisplay");
+  if (streakEl) streakEl.textContent = `x${state.streak}`;
+
+  // Update Killstreak HUD badges
+  const uavBadge = $("streak-uav");
+  if (uavBadge) {
+    if (killstreakManager.uavActive) {
+      uavBadge.className = "streak-badge active";
+      uavBadge.textContent = `UAV [${Math.ceil(killstreakManager.uavTimer)}s]`;
+    } else if (killstreakManager.uavReady) {
+      uavBadge.className = "streak-badge ready";
+      uavBadge.textContent = "UAV [7/U READY]";
+    } else {
+      uavBadge.className = "streak-badge";
+      uavBadge.textContent = "UAV [3]";
+    }
+  }
+
+  const strikeBadge = $("streak-airstrike");
+  if (strikeBadge) {
+    if (killstreakManager.airstrikeActive) {
+      strikeBadge.className = "streak-badge active";
+      strikeBadge.textContent = "STRIKE ACTIVE";
+    } else if (killstreakManager.airstrikeReady) {
+      strikeBadge.className = "streak-badge ready";
+      strikeBadge.textContent = "STRIKE [8/J READY]";
+    } else {
+      strikeBadge.className = "streak-badge";
+      strikeBadge.textContent = "STRIKE [5]";
+    }
+  }
+
+  const nvgBadge = $("badge-nvg");
+  if (nvgBadge) {
+    nvgBadge.className = state.nvg ? "nvg-badge active" : "nvg-badge";
+  }
+
+  // Radar Mini-Map Update
+  const radarPanel = $("radar-panel");
+  const radarSweep = $("radar-sweep");
+  const radarBlips = $("radar-blips");
+  if (radarPanel && radarSweep && radarBlips) {
+    if (killstreakManager.uavActive) {
+      radarPanel.classList.add("uav-active");
+      const deg = (killstreakManager.uavSweepAngle * 180) / Math.PI;
+      radarSweep.style.transform = `rotate(${deg}deg)`;
+
+      const playerEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
+      const radarData = killstreakManager.getRadarBlips(camera.position, playerEuler.y, enemies, 65.0);
+      let blipsHtml = "";
+      for (const blip of radarData.blips) {
+        const leftPct = Math.round(50 + blip.x * 42);
+        const topPct = Math.round(50 - blip.y * 42);
+        blipsHtml += `<div class="radar-blip" style="left:${leftPct}%;top:${topPct}%"></div>`;
+      }
+      radarBlips.innerHTML = blipsHtml;
+    } else {
+      radarPanel.classList.remove("uav-active");
+      radarBlips.innerHTML = "";
     }
   }
 
@@ -721,6 +915,20 @@ function tick() {
       }
     }
 
+    // 2b. Tactical Killstreaks & Night Vision
+    if (input.toggleNightVision) {
+      toggleNightVision();
+    }
+    if (input.killstreakUav) {
+      killstreakManager.activateUav();
+    }
+    if (input.killstreakAirstrike) {
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      const targetPos = camera.position.clone().addScaledVector(forward, 28);
+      targetPos.y = 0;
+      killstreakManager.activateAirstrike(targetPos);
+    }
+
     // 3. Movement & Stamina
     const speed = input.sprinting && state.stamina > 0 ? CFG.sprint : CFG.walk;
     if (input.sprinting) {
@@ -751,6 +959,7 @@ function tick() {
       weaponManager.executeFire({
         onRaycastHit: handleRaycastShot,
         onSpawnGrenade: spawnGrenade,
+        onSpawnRocket: spawnRocket,
         enemies,
       });
       combatVFX.muzzleFlash(0.045);
@@ -781,6 +990,7 @@ function tick() {
     // 8. Combat Director & Entities
     const acc = state.shots > 0 ? state.hits / state.shots : 0.5;
     director.update(dt, camera.position, state.health, acc);
+    killstreakManager.update(dt, { enemies, playerPos: camera.position });
     enemies.forEach((e) => e.update(dt));
 
     // 9. VFX, Projectiles & Grenades
@@ -788,6 +998,7 @@ function tick() {
     combatVFX.update(dt);
     updateParticles(dt);
     updateGrenades(dt);
+    updateRockets(dt);
 
     // 10. Client Prediction Tick
     clientPrediction.input({
@@ -836,6 +1047,34 @@ controls.addEventListener("unlock", () => {
     $("start").style.display = "grid";
   }
 });
+
+// Click and Touch Handlers for Killstreak Badges & NVG
+$("streak-uav")?.addEventListener("click", () => killstreakManager.activateUav());
+$("streak-airstrike")?.addEventListener("click", () => {
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const targetPos = camera.position.clone().addScaledVector(forward, 28);
+  targetPos.y = 0;
+  killstreakManager.activateAirstrike(targetPos);
+});
+$("badge-nvg")?.addEventListener("click", () => toggleNightVision());
+
+$("touch-btn-uav")?.addEventListener(
+  "touchstart",
+  (e) => {
+    e.preventDefault();
+    killstreakManager.activateUav();
+  },
+  { passive: false }
+);
+
+$("touch-btn-nvg")?.addEventListener(
+  "touchstart",
+  (e) => {
+    e.preventDefault();
+    toggleNightVision();
+  },
+  { passive: false }
+);
 
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;

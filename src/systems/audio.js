@@ -308,7 +308,7 @@ export class TacticalAudio {
   /**
    * Unified weapon shot dispatcher routing to distinct procedural synthesizers.
    */
-  shot(weaponType, worldPosition = null) {
+  shot(weaponType, worldPosition = null, extra = null) {
     const type = String(weaponType || "").toLowerCase();
     switch (type) {
       case "shotgun":
@@ -317,6 +317,11 @@ export class TacticalAudio {
         return this.fireSniper(worldPosition);
       case "grenade":
         return this.explosion(worldPosition);
+      case "akimbo":
+        return this.fireAkimbo(worldPosition, extra?.isLeft);
+      case "rpg":
+      case "rocket":
+        return this.fireRocket(worldPosition);
       case "carbine":
       default:
         return this.fireCarbine(worldPosition);
@@ -508,6 +513,250 @@ export class TacticalAudio {
       volume: 0.65,
       dest: bus,
       startTime: now,
+    });
+  }
+
+  /**
+   * Akimbo Tactical Pistols - Snappy dual-wield pistol report with mechanical slide snap.
+   * Alternates stereo panning left / right when firing from hip.
+   */
+  fireAkimbo(worldPos = null, isLeft = false) {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    let bus = this.#createSpatialBus(worldPos);
+    if (!worldPos && typeof this.ctx.createStereoPanner === "function") {
+      const panner = this.ctx.createStereoPanner();
+      panner.pan.value = isLeft ? -0.28 : 0.28;
+      panner.connect(this.master);
+      bus = panner;
+    }
+
+    const now = this.ctx.currentTime;
+
+    // Crisp mechanical pistol crack
+    this.#noiseBurst(bus, now, 0.045, 2200, 0.45, "highpass", 0.7);
+    this.#noiseBurst(bus, now, 0.07, 1600, 0.4, "bandpass", 0.8);
+
+    // Slide kick transient
+    this.tone({
+      frequency: 310,
+      sweepFreq: 110,
+      duration: 0.05,
+      type: "square",
+      volume: 0.22,
+      dest: bus,
+      startTime: now,
+    });
+
+    // Caliber punch
+    this.tone({
+      frequency: 85,
+      sweepFreq: 45,
+      duration: 0.08,
+      type: "sine",
+      volume: 0.24,
+      dest: bus,
+      startTime: now,
+    });
+  }
+
+  /**
+   * Heavy RPG-7 Launcher - Rocket motor whoosh and concussive exhaust blast.
+   */
+  fireRocket(worldPos = null) {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    const bus = this.#createSpatialBus(worldPos);
+    if (!bus) return;
+    const now = this.ctx.currentTime;
+
+    // Motor whoosh noise ramp
+    this.#noiseBurst(bus, now, 0.35, 680, 0.65, "bandpass", 1.2);
+
+    // Motor thrust ignition tone
+    this.tone({
+      frequency: 180,
+      sweepFreq: 45,
+      duration: 0.22,
+      type: "sawtooth",
+      volume: 0.45,
+      dest: bus,
+      startTime: now,
+    });
+
+    // Sub-bass exhaust pop
+    this.tone({
+      frequency: 62,
+      sweepFreq: 28,
+      duration: 0.28,
+      type: "sine",
+      volume: 0.5,
+      dest: bus,
+      startTime: now,
+    });
+  }
+
+  playRocketLaunch(worldPos = null) {
+    this.fireRocket(worldPos);
+  }
+
+  /**
+   * Massive RPG / Airstrike high-yield detonation shockwave with long sub-bass rumble.
+   */
+  playRocketExplosion(worldPos = null) {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    const bus = this.#createSpatialBus(worldPos);
+    if (!bus) return;
+    const now = this.ctx.currentTime;
+
+    // Massive concussive shockwave
+    this.#noiseBurst(bus, now, 0.65, 340, 0.95, "lowpass", 0.85);
+    this.#noiseBurst(bus, now, 0.28, 1400, 0.6, "bandpass", 0.7);
+
+    // Concussive punch
+    this.tone({
+      frequency: 160,
+      sweepFreq: 24,
+      duration: 0.45,
+      type: "sawtooth",
+      volume: 0.6,
+      dest: bus,
+      startTime: now,
+    });
+
+    // Deep sub-bass crater rumble
+    this.tone({
+      frequency: 44,
+      sweepFreq: 14,
+      duration: 0.9,
+      type: "sine",
+      volume: 0.75,
+      dest: bus,
+      startTime: now,
+    });
+  }
+
+  /**
+   * High-tech electronic tactical UAV radar sweep chime.
+   */
+  playUavPing() {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    this.tone({
+      frequency: 1650,
+      sweepFreq: 2150,
+      duration: 0.08,
+      type: "sine",
+      volume: 0.2,
+      startTime: now,
+    });
+    this.tone({
+      frequency: 1850,
+      sweepFreq: 1450,
+      duration: 0.12,
+      type: "triangle",
+      volume: 0.12,
+      startTime: now + 0.06,
+    });
+  }
+
+  /**
+   * Precision Airstrike supersonic jet flyby with Doppler shift and turbine roar.
+   */
+  playJetFlyby() {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const duration = 2.2;
+
+    this.tone({
+      frequency: 2400,
+      sweepFreq: 380,
+      duration,
+      type: "sine",
+      volume: 0.28,
+      startTime: now,
+    });
+
+    if (this.cachedNoiseBuffer) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.cachedNoiseBuffer;
+      src.loop = true;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(3200, now);
+      filter.frequency.exponentialRampToValueAtTime(420, now + duration);
+      filter.Q.setValueAtTime(1.8, now);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.55, now + 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.master);
+
+      src.start(now);
+      src.stop(now + duration + 0.05);
+    }
+  }
+
+  /**
+   * Night Vision goggles phosphor tube activation whine and relay click.
+   */
+  playNightVisionToggle(enabled = true) {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    this.tone({
+      frequency: enabled ? 3600 : 4800,
+      sweepFreq: enabled ? 5200 : 2800,
+      duration: 0.055,
+      type: "sine",
+      volume: 0.16,
+      startTime: now,
+    });
+    this.tone({
+      frequency: 950,
+      duration: 0.02,
+      type: "square",
+      volume: 0.1,
+      startTime: now + 0.03,
+    });
+  }
+
+  /**
+   * Tactical radio announcement chime when a killstreak reward is unlocked.
+   */
+  playKillstreakEarned(name = "") {
+    if (!this.ready || !this.ctx) this.ensure();
+    if (!this.ready || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    this.#noiseBurst(this.master, now, 0.04, 3200, 0.15, "bandpass");
+    this.tone({
+      frequency: 580,
+      duration: 0.06,
+      type: "triangle",
+      volume: 0.22,
+      startTime: now + 0.02,
+    });
+    this.tone({
+      frequency: 880,
+      duration: 0.09,
+      type: "triangle",
+      volume: 0.25,
+      startTime: now + 0.09,
     });
   }
 

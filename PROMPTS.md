@@ -96,3 +96,27 @@ Ich möchte, dass du einen Ego-Shooter auf dem Niveau der neuesten Call of Duty-
 Fächere Unteragenten auf und lass Unteragenten jeden Punkt einzeln angehen, damit das Spiel absolut perfekt wird. Du solltest /loop für jeden Punkt verwenden und einen separaten Unteragenten ihn visuell überprüfen lassen, um sicherzustellen, dass er Triple A aussieht. Dieser separate Unteragent sollte ein wirklich harter Kritiker sein, und wenn es nicht Triple A aussieht, sollte er weitermachen.
 Hör nicht auf, bis jeder Unteragent von der Qualität im Vergleich zum tatsächlichen Call of Duty-Spiel absolut begeistert ist. Er sollte sie buchstäblich blind nebeneinander vergleichen und sagen, welche besser aussieht. Mach das in ThreeJS. /loop, bis es absolut perfekt ist. Fächere Unteragenten auf und ultracode.
 ```
+
+---
+
+## 8. Option 3: Advanced Tactical Expansion (Killstreaks, Akimbo, RPG-7, Night Vision)
+
+**Trigger**: Option `3` Selection  
+**User Directives**:
+```text
+3 - Expand with advanced CoD features (Killstreaks: UAV/Airstrike, new weapons: Akimbo/RPG-7, Night Vision mode).
+```
+
+**Delivered Capabilities**:
+1. **Killstreak System (`src/systems/killstreaks.js`)**:
+   - Consecutive kill tracking with death reset.
+   - 3 Kills: UAV Recon Radar with sweeping blip projection on HUD mini-radar.
+   - 5 Kills: Precision Airstrike with supersonic jet flyby audio, 3-bomb cluster detonation, and screen trauma shake.
+2. **6-Weapon Arsenal Expansion (`src/systems/weapons.js`)**:
+   - Slot 5: Akimbo Tactical Pistols (dual-wield, 480 RPM, alternating recoil yaw and stereo pan).
+   - Slot 6: Heavy RPG-7 Launcher (single rocket, 240 AoE damage, rocket flight projectile with smoke exhaust trail).
+3. **Procedural WebAudio Synthesis (`src/systems/audio.js`)**:
+   - Added procedural synthesizers for Akimbo report, RPG launch, high-yield rocket explosion, UAV electronic ping, supersonic jet flyby with Doppler shift, and phosphor NVG activation whine. Zero external audio files required.
+4. **Night Vision Goggles (NVG) Phosphor Mode (`src/style.css`, `src/main.js`)**:
+   - Green phosphor cathode overlay, CRT scanlines, contrast enhancement, dynamic fog tuning, toggled via `KeyN` or HUD touch button.
+

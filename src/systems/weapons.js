@@ -25,6 +25,8 @@ export const WEAPON_TYPES = Object.freeze({
   SHOTGUN: "shotgun",
   SNIPER: "sniper",
   GRENADE: "grenade",
+  AKIMBO: "akimbo",
+  RPG: "rpg",
 });
 
 export const RELOAD_STAGES = Object.freeze({
@@ -141,6 +143,59 @@ export const WEAPON_CONFIGS = Object.freeze([
     adsPos: new THREE.Vector3(0.08, -0.24, -0.36),
     hasScope: false,
   },
+  {
+    id: WEAPON_TYPES.AKIMBO,
+    type: WEAPON_TYPES.AKIMBO,
+    name: "Akimbo Pistols",
+    slot: 5,
+    fireMode: "semi",
+    magSize: 30,
+    reserve: 90,
+    rpm: 480,
+    cooldown: 60 / 480,
+    damage: 24,
+    headshotMultiplier: 1.4,
+    pellets: 1,
+    spread: 0.022,
+    adsSpread: 0.016,
+    hipFov: 74,
+    adsFov: 64,
+    reloadTime: 1.5,
+    recoilPitch: 0.045,
+    recoilYaw: 0.028,
+    kickBack: 0.05,
+    hipPos: new THREE.Vector3(0.0, -0.25, -0.44),
+    adsPos: new THREE.Vector3(0.0, -0.21, -0.40),
+    hasScope: false,
+    isDualWield: true,
+  },
+  {
+    id: WEAPON_TYPES.RPG,
+    type: WEAPON_TYPES.RPG,
+    name: "Heavy RPG-7",
+    slot: 6,
+    fireMode: "rocket",
+    magSize: 1,
+    reserve: 4,
+    rpm: 18,
+    cooldown: 60 / 18,
+    damage: 240,
+    blastRadius: 14.0,
+    rocketVelocity: 38,
+    reloadTime: 3.2,
+    pellets: 1,
+    spread: 0.008,
+    adsSpread: 0.002,
+    hipFov: 74,
+    adsFov: 52,
+    recoilPitch: 0.22,
+    recoilYaw: 0.04,
+    kickBack: 0.25,
+    hipPos: new THREE.Vector3(0.24, -0.22, -0.48),
+    adsPos: new THREE.Vector3(0.0, -0.13, -0.34),
+    hasScope: false,
+    isLauncher: true,
+  },
 ]);
 
 /**
@@ -256,6 +311,76 @@ export function buildWeaponMesh(id, materials = null) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.008, 8, 16), mats.light);
     ring.position.set(0.04, 0.12, 0);
     root.add(ring);
+  } else if (id === WEAPON_TYPES.AKIMBO || id === "akimbo") {
+    // Dual-wield tactical pistols: left and right
+    const makePistol = (offsetX) => {
+      const p = new THREE.Group();
+      p.position.x = offsetX;
+
+      const slide = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.34), mats.metal);
+      slide.castShadow = true;
+      p.add(slide);
+
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.06, 0.3), mats.dark);
+      frame.position.y = -0.045;
+      p.add(frame);
+
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.12, 10), mats.dark);
+      barrel.rotation.x = Math.PI / 2;
+      barrel.position.set(0, 0.01, -0.21);
+      p.add(barrel);
+
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.09), mats.rubber);
+      grip.position.set(0, -0.12, 0.06);
+      grip.rotation.x = 0.28;
+      p.add(grip);
+
+      return p;
+    };
+
+    root.add(makePistol(-0.19));
+    root.add(makePistol(0.19));
+  } else if (id === WEAPON_TYPES.RPG || id === "rpg") {
+    // Heavy RPG-7 launch tube
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 1.18, 16), mats.dark);
+    tube.rotation.x = Math.PI / 2;
+    tube.position.set(0, 0, -0.12);
+    tube.castShadow = true;
+    root.add(tube);
+
+    // Conical exhaust flare at rear
+    const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.052, 0.24, 16), mats.metal);
+    exhaust.rotation.x = Math.PI / 2;
+    exhaust.position.set(0, 0, 0.54);
+    root.add(exhaust);
+
+    // Wood/composite heat shield
+    const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.38, 16), mats.concrete || mats.dark);
+    shield.rotation.x = Math.PI / 2;
+    shield.position.set(0, 0, 0.14);
+    root.add(shield);
+
+    // Front rocket warhead
+    const warheadCone = new THREE.Mesh(new THREE.ConeGeometry(0.092, 0.24, 16), mats.red);
+    warheadCone.rotation.x = -Math.PI / 2;
+    warheadCone.position.set(0, 0, -0.88);
+    root.add(warheadCone);
+
+    const warheadBody = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.048, 0.24, 16), mats.metal);
+    warheadBody.rotation.x = Math.PI / 2;
+    warheadBody.position.set(0, 0, -0.68);
+    root.add(warheadBody);
+
+    // Pistol grip and trigger assembly
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.18, 0.08), mats.rubber);
+    grip.position.set(0, -0.15, -0.06);
+    grip.rotation.x = 0.22;
+    root.add(grip);
+
+    // Optical sight bracket
+    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.1), mats.metal);
+    sight.position.set(-0.065, 0.08, -0.1);
+    root.add(sight);
   }
 
   return root;
@@ -302,6 +427,7 @@ export class WeaponArsenal {
     this.currentIndex = 0;
     this.current = this.weapons[0];
     this.isAds = false;
+    this.akimboLeft = false;
 
     // FSM State: 'idle' | 'firing' | 'reloading' | 'switching'
     this.state = "idle";
@@ -361,13 +487,13 @@ export class WeaponArsenal {
   selectWeapon(slotIndex) {
     let targetIndex = slotIndex;
 
-    // Handle 1-based indexing (e.g. slots 1-4) or string weapon id
+    // Handle 1-based indexing (e.g. slots 1-6) or string weapon id
     if (typeof targetIndex === "string") {
       targetIndex = this.weapons.findIndex(
         (w) => w.id === slotIndex || w.type === slotIndex
       );
     } else if (typeof targetIndex === "number") {
-      if (targetIndex >= 1 && targetIndex <= 4 && !this.weapons[targetIndex]) {
+      if (targetIndex >= 1 && targetIndex <= this.weapons.length && !this.weapons[targetIndex]) {
         targetIndex = targetIndex - 1;
       }
     }
@@ -520,13 +646,18 @@ export class WeaponArsenal {
       baseDir = new THREE.Vector3(0, 0, -1);
     }
 
+    if (this.current.type === WEAPON_TYPES.AKIMBO) {
+      this.akimboLeft = !this.akimboLeft;
+    }
+
     // Play weapon fire sound via TacticalAudio
     this.#playWeaponSound(fireOrigin);
 
     // Apply kinetic kick if kinetics system is attached
     if (this.kinetics) {
       const pitchMul = ads ? 0.6 : 1.0;
-      const yawMul = ads ? 0.5 : 1.0;
+      const yawSign = this.current.type === WEAPON_TYPES.AKIMBO ? (this.akimboLeft ? -1 : 1) : 1;
+      const yawMul = (ads ? 0.5 : 1.0) * yawSign;
       const kickMul = ads ? 0.55 : 1.0;
       this.kinetics.addRecoil?.(
         this.current.recoilPitch * pitchMul,
@@ -561,6 +692,33 @@ export class WeaponArsenal {
           damage: this.current.damage,
           radius: this.current.blastRadius,
           fuse: this.current.fuseTime,
+        },
+        hits: [],
+      };
+    }
+
+    // Heavy RPG-7 rocket projectile launch
+    if (this.current.type === WEAPON_TYPES.RPG) {
+      const rocketDir = baseDir.clone().normalize();
+      const velocity = rocketDir.multiplyScalar(this.current.rocketVelocity || 38);
+
+      if (this.physicsWorld?.spawnRocket) {
+        this.physicsWorld.spawnRocket(
+          fireOrigin,
+          velocity,
+          this.current.damage,
+          this.current.blastRadius
+        );
+      }
+
+      return {
+        fired: true,
+        weapon: this.getCurrentWeapon(),
+        rocket: {
+          origin: fireOrigin,
+          velocity,
+          damage: this.current.damage,
+          radius: this.current.blastRadius,
         },
         hits: [],
       };
@@ -601,9 +759,9 @@ export class WeaponArsenal {
 
   /**
    * Compatibility method for main game loop.
-   * Bridges camera raycasting, screen burst VFX, and physics grenades.
+   * Bridges camera raycasting, screen burst VFX, physics grenades, and RPG rockets.
    */
-  executeFire({ onRaycastHit, onSpawnGrenade, enemies = [] } = {}) {
+  executeFire({ onRaycastHit, onSpawnGrenade, onSpawnRocket, enemies = [] } = {}) {
     if (this.current.ammo <= 0) {
       this.audio?.dryClick?.();
       this.startReload();
@@ -620,10 +778,15 @@ export class WeaponArsenal {
 
     const fireOrigin = this.camera ? this.camera.position.clone() : new THREE.Vector3();
 
+    if (this.current.type === WEAPON_TYPES.AKIMBO) {
+      this.akimboLeft = !this.akimboLeft;
+    }
+
     // Kinetic recoil
     if (this.kinetics) {
       const recoilPitch = this.current.recoilPitch * (this.isAds ? 0.6 : 1.0);
-      const recoilYaw = this.current.recoilYaw * (this.isAds ? 0.5 : 1.0);
+      const yawSign = this.current.type === WEAPON_TYPES.AKIMBO ? (this.akimboLeft ? -1 : 1) : 1;
+      const recoilYaw = this.current.recoilYaw * (this.isAds ? 0.5 : 1.0) * yawSign;
       const kickBack = this.current.kickBack * (this.isAds ? 0.55 : 1.0);
       this.kinetics.addRecoil(recoilPitch, recoilYaw, kickBack);
     }
@@ -646,6 +809,24 @@ export class WeaponArsenal {
           this.current.damage,
           this.current.blastRadius,
           this.current.fuseTime
+        );
+      }
+      return { fired: true, weapon: this.getCurrentWeapon(), hits: [] };
+    }
+
+    // Heavy RPG-7 rocket projectile launch
+    if (this.current.type === WEAPON_TYPES.RPG) {
+      if (onSpawnRocket && this.camera) {
+        const fireDir = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(this.camera.quaternion)
+          .normalize();
+        const spawnPos = this.camera.position.clone().addScaledVector(fireDir, 0.9);
+        const velocity = fireDir.multiplyScalar(this.current.rocketVelocity || 38);
+        onSpawnRocket(
+          spawnPos,
+          velocity,
+          this.current.damage,
+          this.current.blastRadius
         );
       }
       return { fired: true, weapon: this.getCurrentWeapon(), hits: [] };
@@ -679,7 +860,7 @@ export class WeaponArsenal {
     if (!this.audio) return;
 
     if (typeof this.audio.shot === "function") {
-      this.audio.shot(this.current.type, worldPos);
+      this.audio.shot(this.current.type, worldPos, { isLeft: this.akimboLeft });
       return;
     }
 
@@ -696,6 +877,12 @@ export class WeaponArsenal {
         break;
       case WEAPON_TYPES.GRENADE:
         this.audio.explosion?.(worldPos) || this.audio.fire?.(worldPos);
+        break;
+      case WEAPON_TYPES.AKIMBO:
+        this.audio.fireAkimbo?.(worldPos, this.akimboLeft) || this.audio.fire?.(worldPos);
+        break;
+      case WEAPON_TYPES.RPG:
+        this.audio.fireRocket?.(worldPos) || this.audio.fire?.(worldPos);
         break;
       default:
         this.audio.fire?.(worldPos);

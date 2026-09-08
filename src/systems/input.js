@@ -127,6 +127,9 @@ export class TouchControls {
     this.btnSprintToggled = false;
     this.weaponSlot = 0;
     this.requestedSlot = null;
+    this.killstreakUav = false;
+    this.killstreakAirstrike = false;
+    this.toggleNightVision = false;
 
     // Hybrid ADS state machine: 'off' | 'hold' | 'toggle'
     this.adsMode = "off";
@@ -712,6 +715,9 @@ export class DesktopControls {
     this.reload = false;
     this.weaponSlot = 0;
     this.requestedSlot = null;
+    this.killstreakUav = false;
+    this.killstreakAirstrike = false;
+    this.toggleNightVision = false;
 
     this.lookDelta = { dx: 0, dy: 0 };
     this.rawMouseDelta = { dx: 0, dy: 0 };
@@ -762,6 +768,25 @@ export class DesktopControls {
         this.weaponSlot = 3;
         this.requestedSlot = 3;
         if (typeof this.options.onWeaponSelect === "function") this.options.onWeaponSelect(3);
+      }
+      if (e.code === "Digit5") {
+        this.weaponSlot = 4;
+        this.requestedSlot = 4;
+        if (typeof this.options.onWeaponSelect === "function") this.options.onWeaponSelect(4);
+      }
+      if (e.code === "Digit6") {
+        this.weaponSlot = 5;
+        this.requestedSlot = 5;
+        if (typeof this.options.onWeaponSelect === "function") this.options.onWeaponSelect(5);
+      }
+      if (e.code === "Digit7" || e.code === "KeyU") {
+        this.killstreakUav = true;
+      }
+      if (e.code === "Digit8" || e.code === "KeyJ") {
+        this.killstreakAirstrike = true;
+      }
+      if (e.code === "KeyN") {
+        this.toggleNightVision = true;
       }
     };
 
@@ -1096,6 +1121,20 @@ export class InputManager {
     this.touchControls.requestedSlot = null;
     this.desktopControls.requestedSlot = null;
 
+    // Tactical killstreak and night vision triggers
+    const killstreakUav = this.touchControls.killstreakUav || this.desktopControls.killstreakUav;
+    const killstreakAirstrike =
+      this.touchControls.killstreakAirstrike || this.desktopControls.killstreakAirstrike;
+    const toggleNightVision =
+      this.touchControls.toggleNightVision || this.desktopControls.toggleNightVision;
+
+    this.touchControls.killstreakUav = false;
+    this.desktopControls.killstreakUav = false;
+    this.touchControls.killstreakAirstrike = false;
+    this.desktopControls.killstreakAirstrike = false;
+    this.touchControls.toggleNightVision = false;
+    this.desktopControls.toggleNightVision = false;
+
     return {
       moveDir: wish,
       moving,
@@ -1105,6 +1144,9 @@ export class InputManager {
       ads: state.ads,
       reload: state.reload,
       selectedSlot,
+      killstreakUav,
+      killstreakAirstrike,
+      toggleNightVision,
       isTouch: this.isTouch,
       yawDelta,
       pitchDelta,

@@ -283,6 +283,158 @@ canvas {
   pointer-events: none;
 }
 
+/* Night Vision Goggles (NVG) Green Phosphor Overlay */
+#nvg-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+  display: none;
+  background:
+    radial-gradient(circle at center, rgba(16, 185, 129, 0.08) 25%, rgba(6, 40, 26, 0.55) 60%, rgba(2, 16, 10, 0.94) 95%),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0px, transparent 1px, transparent 2px, rgba(0, 0, 0, 0.18) 3px);
+  mix-blend-mode: screen;
+}
+
+#nvg-overlay.active {
+  display: block;
+}
+
+#nvg-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 120px 40px rgba(0, 0, 0, 0.88);
+  pointer-events: none;
+}
+
+canvas.nvg-active {
+  filter: contrast(1.45) brightness(1.25) sepia(0.85) hue-rotate(85deg) saturate(2.2);
+}
+
+/* Tactical Mini-Radar Widget */
+#radar-panel {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34, 211, 238, 0.4);
+  background: radial-gradient(circle, rgba(5, 20, 24, 0.85), rgba(2, 6, 8, 0.95));
+  overflow: hidden;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+#radar-panel.uav-active {
+  border-color: #22d3ee;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.55);
+}
+
+#radar-sweep {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 38px;
+  height: 2px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #22d3ee, transparent);
+  display: none;
+}
+
+#radar-panel.uav-active #radar-sweep {
+  display: block;
+}
+
+#radar-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: #22d3ee;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px #22d3ee;
+}
+
+.radar-blip {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #ef4444;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px #ef4444;
+  animation: blipPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes blipPulse {
+  0%, 100% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.7); }
+}
+
+/* Killstreak Badges */
+#killstreaks-hud {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.streak-badge {
+  font-size: 10px;
+  padding: 3px 8px;
+  background: rgba(10, 20, 24, 0.7);
+  border: 1px solid rgba(163, 210, 205, 0.2);
+  letter-spacing: 0.12em;
+  opacity: 0.45;
+  transition: all 0.2s;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.streak-badge.ready {
+  opacity: 1;
+  border-color: #f59e0b;
+  color: #fff;
+  background: rgba(245, 158, 11, 0.22);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+  animation: streakGlow 1.5s infinite alternate;
+}
+
+.streak-badge.active {
+  opacity: 1;
+  border-color: var(--cyan-bright);
+  color: #fff;
+  background: rgba(34, 211, 238, 0.25);
+  box-shadow: 0 0 15px var(--cyan-glow);
+}
+
+@keyframes streakGlow {
+  0% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+  100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.85); }
+}
+
+.nvg-badge {
+  font-size: 10px;
+  padding: 3px 8px;
+  background: rgba(10, 20, 24, 0.7);
+  border: 1px solid rgba(163, 210, 205, 0.2);
+  letter-spacing: 0.12em;
+  opacity: 0.6;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.nvg-badge.active {
+  opacity: 1;
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.22);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+}
+
 #crosshairHint {
   position: absolute;
   left: 50%;
@@ -450,24 +602,24 @@ canvas {
 .touch-btn-cluster {
   position: absolute;
   bottom: 24px;
-  right: 24px;
+  right: 20px;
   display: grid;
-  grid-template-columns: repeat(3, 58px);
-  grid-template-rows: repeat(2, 58px);
-  gap: 12px;
+  grid-template-columns: repeat(4, 52px);
+  grid-template-rows: repeat(2, 52px);
+  gap: 10px;
   pointer-events: auto;
 }
 
 .touch-action-btn {
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: rgba(15, 23, 42, 0.88);
   border: 2px solid var(--cyan-bright);
   color: var(--cyan-bright);
   font-family: "Rajdhani", sans-serif;
   font-weight: 800;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -487,15 +639,35 @@ canvas {
 }
 
 .touch-action-btn.btn-fire {
-  grid-column: 3;
+  grid-column: 4;
   grid-row: 1 / span 2;
-  width: 70px;
-  height: 70px;
+  width: 66px;
+  height: 66px;
   background: rgba(239, 68, 68, 0.28);
   border-color: var(--crimson-danger);
   color: #ffffff;
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.45);
   align-self: center;
+}
+
+.touch-action-btn.btn-tactical {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.touch-action-btn.btn-tactical.active {
+  background: #f59e0b;
+  color: #050709;
+}
+
+.touch-action-btn.btn-nvg {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.touch-action-btn.btn-nvg.active {
+  background: #10b981;
+  color: #050709;
 }
 
 .touch-action-btn.btn-fire:active, .touch-action-btn.btn-fire.active {
