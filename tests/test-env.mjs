@@ -459,7 +459,15 @@ export function setupEnvironment({ touch = false, touchPoints = 5 } = {}) {
 
   globalThis.window = mockWindow;
   globalThis.document = mockDocument;
-  globalThis.navigator = mockNavigator;
+  try {
+    Object.defineProperty(globalThis, "navigator", {
+      value: mockNavigator,
+      configurable: true,
+      writable: true,
+    });
+  } catch {
+    Object.assign(globalThis.navigator, mockNavigator);
+  }
   globalThis.AudioContext = MockAudioContext;
   globalThis.webkitAudioContext = MockAudioContext;
   globalThis.WebSocket = MockWebSocket;

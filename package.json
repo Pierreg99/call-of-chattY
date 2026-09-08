@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server/netcode.mjs",
     "check": "node --check src/main.js && node --check src/systems/physics.js && node --check src/systems/animation.js && node --check src/systems/audio.js && node --check src/systems/director.js && node --check src/systems/vfx.js && node --check src/systems/performance.js && node --check src/systems/kinetics.js && node --check src/systems/weapons.js && node --check src/systems/input.js && node --check src/net/netcode.js && node --check src/aaa-runtime.js && node --check server/netcode.mjs",
-    "test": "node tests.smoke.mjs"
+    "test": "node tests.smoke.mjs && node tests.subsystems.mjs"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
